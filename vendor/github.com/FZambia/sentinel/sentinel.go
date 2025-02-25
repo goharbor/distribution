@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/garyburd/redigo/redis"
+	"github.com/gomodule/redigo/redis"
 )
 
 // Sentinel provides a way to add high availability (HA) to Redis Pool using
@@ -19,44 +19,50 @@ import (
 //
 // Example of the simplest usage to contact master "mymaster":
 //
-//  func newSentinelPool() *redis.Pool {
-//  	sntnl := &sentinel.Sentinel{
-//  		Addrs:      []string{":26379", ":26380", ":26381"},
-//  		MasterName: "mymaster",
-//  		Dial: func(addr string) (redis.Conn, error) {
-//  			timeout := 500 * time.Millisecond
-//  			c, err := redis.DialTimeout("tcp", addr, timeout, timeout, timeout)
-//  			if err != nil {
-//  				return nil, err
-//  			}
-//  			return c, nil
-//  		},
-//  	}
-//  	return &redis.Pool{
-//  		MaxIdle:     3,
-//  		MaxActive:   64,
-//  		Wait:        true,
-//  		IdleTimeout: 240 * time.Second,
-//  		Dial: func() (redis.Conn, error) {
-//  			masterAddr, err := sntnl.MasterAddr()
-//  			if err != nil {
-//  				return nil, err
-//  			}
-//  			c, err := redis.Dial("tcp", masterAddr)
-//  			if err != nil {
-//  				return nil, err
-//  			}
-//  			return c, nil
-//  		},
-//  		TestOnBorrow: func(c redis.Conn, t time.Time) error {
-//  			if !sentinel.TestRole(c, "master") {
-//  				return errors.New("Role check failed")
-//  			} else {
-//  				return nil
-//  			}
-//  		},
-//  	}
-//  }
+//	func newSentinelPool() *redis.Pool {
+//		sntnl := &sentinel.Sentinel{
+//			Addrs:      []string{":26379", ":26380", ":26381"},
+//			MasterName: "mymaster",
+//			Dial: func(addr string) (redis.Conn, error) {
+//				timeout := 500 * time.Millisecond
+//				c, err := redis.DialTimeout("tcp", addr, timeout, timeout, timeout)
+//				if err != nil {
+//					return nil, err
+//				}
+//				return c, nil
+//			},
+//		}
+//		return &redis.Pool{
+//			MaxIdle:     3,
+//			MaxActive:   64,
+//			Wait:        true,
+//			IdleTimeout: 240 * time.Second,
+//			Dial: func() (redis.Conn, error) {
+//				masterAddr, err := sntnl.MasterAddr()
+//				if err != nil {
+//					return nil, err
+//				}
+//				c, err := redis.Dial("tcp", masterAddr)
+//				if err != nil {
+//					return nil, err
+//				}
+//				if _, err = c.Do("AUTH", "your-Password"); err != nil {
+//					c.Close()
+//					return nil, err
+//				}
+//				isMaster, err := sentinel.TestRole(c, "master")
+//				if err != nil {
+//					c.Close()
+//					return nil, err
+//				}
+//				if !isMaster {
+//					c.Close()
+//					return nil, fmt.Errorf("%s is not redis master", masterAddr)
+//				}
+//				return c, nil
+//			},
+//		}
+//	}
 type Sentinel struct {
 	// Addrs is a slice with known Sentinel addresses.
 	Addrs []string
@@ -104,44 +110,30 @@ func (ns NoSentinelsAvailable) Error() string {
 // start of the list, so that at the next reconnection, we'll try first
 // the Sentinel that was reachable in the previous connection attempt,
 // minimizing latency.
-//
-// Lock must be held by caller.
 func (s *Sentinel) putToTop(addr string) {
-	addrs := s.Addrs
-	if addrs[0] == addr {
-		// Already on top.
-		return
-	}
-	newAddrs := []string{addr}
-	for _, a := range addrs {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, a := range s.Addrs {
 		if a == addr {
-			continue
+			s.Addrs[0], s.Addrs[i] = s.Addrs[i], s.Addrs[0]
+			break
 		}
-		newAddrs = append(newAddrs, a)
 	}
-	s.Addrs = newAddrs
 }
 
 // putToBottom puts Sentinel address to the bottom of address list.
 // We call this method internally when see that some Sentinel failed to answer
 // on application request so next time we start with another one.
-//
-// Lock must be held by caller.
 func (s *Sentinel) putToBottom(addr string) {
-	addrs := s.Addrs
-	if addrs[len(addrs)-1] == addr {
-		// Already on bottom.
-		return
-	}
-	newAddrs := []string{}
-	for _, a := range addrs {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, a := range s.Addrs {
 		if a == addr {
-			continue
+			copy(s.Addrs[i:], s.Addrs[i+1:])
+			s.Addrs[len(s.Addrs)-1] = a
+			break
 		}
-		newAddrs = append(newAddrs, a)
 	}
-	newAddrs = append(newAddrs, addr)
-	s.Addrs = newAddrs
 }
 
 // defaultPool returns a connection pool to one Sentinel. This allows
@@ -162,31 +154,22 @@ func (s *Sentinel) defaultPool(addr string) *redis.Pool {
 	}
 }
 
-func (s *Sentinel) get(addr string) redis.Conn {
-	pool := s.poolForAddr(addr)
-	return pool.Get()
-}
-
 func (s *Sentinel) poolForAddr(addr string) *redis.Pool {
 	s.mu.Lock()
-	if s.pools == nil {
-		s.pools = make(map[string]*redis.Pool)
-	}
-	pool, ok := s.pools[addr]
-	if ok {
-		s.mu.Unlock()
+	defer s.mu.Unlock()
+	if pool, ok := s.pools[addr]; ok {
 		return pool
 	}
 	s.mu.Unlock()
 	newPool := s.newPool(addr)
 	s.mu.Lock()
-	p, ok := s.pools[addr]
-	if ok {
-		s.mu.Unlock()
-		return p
+	if pool, ok := s.pools[addr]; ok {
+		return pool
+	}
+	if s.pools == nil {
+		s.pools = make(map[string]*redis.Pool)
 	}
 	s.pools[addr] = newPool
-	s.mu.Unlock()
 	return newPool
 }
 
@@ -200,10 +183,8 @@ func (s *Sentinel) newPool(addr string) *redis.Pool {
 // close connection pool to Sentinel.
 // Lock must be hold by caller.
 func (s *Sentinel) close() {
-	if s.pools != nil {
-		for _, pool := range s.pools {
-			pool.Close()
-		}
+	for _, pool := range s.pools {
+		pool.Close()
 	}
 	s.pools = nil
 }
@@ -216,19 +197,12 @@ func (s *Sentinel) doUntilSuccess(f func(redis.Conn) (interface{}, error)) (inte
 	var lastErr error
 
 	for _, addr := range addrs {
-		conn := s.get(addr)
+		conn := s.poolForAddr(addr).Get()
 		reply, err := f(conn)
 		conn.Close()
 		if err != nil {
 			lastErr = err
-			s.mu.Lock()
-			pool, ok := s.pools[addr]
-			if ok {
-				pool.Close()
-				delete(s.pools, addr)
-			}
 			s.putToBottom(addr)
-			s.mu.Unlock()
 			continue
 		}
 		s.putToTop(addr)
@@ -240,24 +214,16 @@ func (s *Sentinel) doUntilSuccess(f func(redis.Conn) (interface{}, error)) (inte
 
 // MasterAddr returns an address of current Redis master instance.
 func (s *Sentinel) MasterAddr() (string, error) {
-	res, err := s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
+	return redis.String(s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
 		return queryForMaster(c, s.MasterName)
-	})
-	if err != nil {
-		return "", err
-	}
-	return res.(string), nil
+	}))
 }
 
 // SlaveAddrs returns a slice with known slave addresses of current master instance.
 func (s *Sentinel) SlaveAddrs() ([]string, error) {
-	res, err := s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
+	return redis.Strings(s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
 		return queryForSlaveAddrs(c, s.MasterName)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return res.([]string), nil
+	}))
 }
 
 // Slave represents a Redis slave instance which is known by Sentinel.
@@ -290,13 +256,9 @@ func (s *Sentinel) Slaves() ([]*Slave, error) {
 
 // SentinelAddrs returns a slice of known Sentinel addresses Sentinel server aware of.
 func (s *Sentinel) SentinelAddrs() ([]string, error) {
-	res, err := s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
+	return redis.Strings(s.doUntilSuccess(func(c redis.Conn) (interface{}, error) {
 		return queryForSentinels(c, s.MasterName)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return res.([]string), nil
+	}))
 }
 
 // Discover allows to update list of known Sentinel addresses. From docs:
@@ -332,12 +294,12 @@ func (s *Sentinel) Close() error {
 // the function returns false. Works with Redis >= 2.8.12.
 // It's not goroutine safe, but if you call this method on pooled connections
 // then you are OK.
-func TestRole(c redis.Conn, expectedRole string) bool {
+func TestRole(c redis.Conn, expectedRole string) (bool, error) {
 	role, err := getRole(c)
-	if err != nil || role != expectedRole {
-		return false
+	if err != nil {
+		return false, err
 	}
-	return true
+	return role == expectedRole, err
 }
 
 // getRole is a convenience function supplied to query an instance (master or
@@ -372,9 +334,9 @@ func queryForSlaveAddrs(conn redis.Conn, masterName string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	slaveAddrs := make([]string, 0)
-	for _, slave := range slaves {
-		slaveAddrs = append(slaveAddrs, slave.Addr())
+	slaveAddrs := make([]string, len(slaves))
+	for i, slave := range slaves {
+		slaveAddrs[i] = slave.Addr()
 	}
 	return slaveAddrs, nil
 }
@@ -384,18 +346,13 @@ func queryForSlaves(conn redis.Conn, masterName string) ([]*Slave, error) {
 	if err != nil {
 		return nil, err
 	}
-	slaves := make([]*Slave, 0)
-	for _, a := range res {
+	slaves := make([]*Slave, len(res))
+	for i, a := range res {
 		sm, err := redis.StringMap(a, err)
 		if err != nil {
-			return slaves, err
+			return nil, err
 		}
-		slave := &Slave{
-			ip:    sm["ip"],
-			port:  sm["port"],
-			flags: sm["flags"],
-		}
-		slaves = append(slaves, slave)
+		slaves[i] = &Slave{ip: sm["ip"], port: sm["port"], flags: sm["flags"]}
 	}
 	return slaves, nil
 }
@@ -405,13 +362,13 @@ func queryForSentinels(conn redis.Conn, masterName string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	sentinels := make([]string, 0)
-	for _, a := range res {
+	sentinels := make([]string, len(res))
+	for i, a := range res {
 		sm, err := redis.StringMap(a, err)
 		if err != nil {
-			return sentinels, err
+			return nil, err
 		}
-		sentinels = append(sentinels, fmt.Sprintf("%s:%s", sm["ip"], sm["port"]))
+		sentinels[i] = fmt.Sprintf("%s:%s", sm["ip"], sm["port"])
 	}
 	return sentinels, nil
 }
