@@ -39,9 +39,8 @@ import (
 	"github.com/docker/distribution/registry/storage/driver/factory"
 	storagemiddleware "github.com/docker/distribution/registry/storage/driver/middleware"
 	"github.com/docker/distribution/version"
-	"github.com/docker/go-metrics"
 	"github.com/docker/libtrust"
-	"github.com/garyburd/redigo/redis"
+	"github.com/gomodule/redigo/redis"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
@@ -503,15 +502,28 @@ func (app *App) configureRedis(configuration *configuration.Configuration) {
 
 	var getRedisAddr func() (string, error)
 	var testOnBorrow func(c redis.Conn, t time.Time) error
+
+	var redisOptions []redis.DialOption
+	if configuration.Redis.DialTimeout > 0 {
+		redisOptions = append(redisOptions, redis.DialConnectTimeout(configuration.Redis.DialTimeout))
+	}
+	if configuration.Redis.ReadTimeout > 0 {
+		redisOptions = append(redisOptions, redis.DialReadTimeout(configuration.Redis.ReadTimeout))
+	}
+	if configuration.Redis.WriteTimeout > 0 {
+		redisOptions = append(redisOptions, redis.DialWriteTimeout(configuration.Redis.WriteTimeout))
+	}
+	if configuration.Redis.EnableTLS {
+		redisOptions = append(redisOptions, redis.DialUseTLS(true))
+	}
+
 	if configuration.Redis.SentinelMasterSet != "" {
 		sntnl := &sentinel.Sentinel{
 			Addrs:      strings.Split(configuration.Redis.Addr, ","),
 			MasterName: configuration.Redis.SentinelMasterSet,
 			Dial: func(addr string) (redis.Conn, error) {
-				c, err := redis.DialTimeout("tcp", addr,
-					configuration.Redis.DialTimeout,
-					configuration.Redis.ReadTimeout,
-					configuration.Redis.WriteTimeout)
+				c, err := redis.Dial("tcp", addr,
+					redisOptions...)
 				if err != nil {
 					return nil, err
 				}
@@ -559,10 +571,8 @@ func (app *App) configureRedis(configuration *configuration.Configuration) {
 			if err != nil {
 				return nil, err
 			}
-			conn, err := redis.DialTimeout("tcp", redisAddr,
-				configuration.Redis.DialTimeout,
-				configuration.Redis.ReadTimeout,
-				configuration.Redis.WriteTimeout)
+			conn, err := redis.Dial("tcp", redisAddr,
+				redisOptions...)
 			if err != nil {
 				dcontext.GetLogger(app).Errorf("error connecting to redis instance %s: %v",
 					configuration.Redis.Addr, err)

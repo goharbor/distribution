@@ -16,11 +16,11 @@ package redis
 
 import (
 	"errors"
+	"time"
 )
 
 // Subscription represents a subscribe or unsubscribe notification.
 type Subscription struct {
-
 	// Kind is "subscribe", "unsubscribe", "psubscribe" or "punsubscribe"
 	Kind string
 
@@ -33,25 +33,19 @@ type Subscription struct {
 
 // Message represents a message notification.
 type Message struct {
-
 	// The originating channel.
 	Channel string
+
+	// The matched pattern, if any
+	Pattern string
 
 	// The message data.
 	Data []byte
 }
 
-// PMessage represents a pmessage notification.
-type PMessage struct {
-
-	// The matched pattern.
-	Pattern string
-
-	// The originating channel.
-	Channel string
-
-	// The message data.
-	Data []byte
+// Pong represents a pubsub pong notification.
+type Pong struct {
+	Data string
 }
 
 // PubSubConn wraps a Conn with convenience methods for subscribers.
@@ -66,35 +60,64 @@ func (c PubSubConn) Close() error {
 
 // Subscribe subscribes the connection to the specified channels.
 func (c PubSubConn) Subscribe(channel ...interface{}) error {
-	c.Conn.Send("SUBSCRIBE", channel...)
+	if err := c.Conn.Send("SUBSCRIBE", channel...); err != nil {
+		return err
+	}
 	return c.Conn.Flush()
 }
 
 // PSubscribe subscribes the connection to the given patterns.
 func (c PubSubConn) PSubscribe(channel ...interface{}) error {
-	c.Conn.Send("PSUBSCRIBE", channel...)
+	if err := c.Conn.Send("PSUBSCRIBE", channel...); err != nil {
+		return err
+	}
 	return c.Conn.Flush()
 }
 
 // Unsubscribe unsubscribes the connection from the given channels, or from all
 // of them if none is given.
 func (c PubSubConn) Unsubscribe(channel ...interface{}) error {
-	c.Conn.Send("UNSUBSCRIBE", channel...)
+	if err := c.Conn.Send("UNSUBSCRIBE", channel...); err != nil {
+		return err
+	}
 	return c.Conn.Flush()
 }
 
 // PUnsubscribe unsubscribes the connection from the given patterns, or from all
 // of them if none is given.
 func (c PubSubConn) PUnsubscribe(channel ...interface{}) error {
-	c.Conn.Send("PUNSUBSCRIBE", channel...)
+	if err := c.Conn.Send("PUNSUBSCRIBE", channel...); err != nil {
+		return err
+	}
 	return c.Conn.Flush()
 }
 
-// Receive returns a pushed message as a Subscription, Message, PMessage or
-// error. The return value is intended to be used directly in a type switch as
+// Ping sends a PING to the server with the specified data.
+//
+// The connection must be subscribed to at least one channel or pattern when
+// calling this method.
+func (c PubSubConn) Ping(data string) error {
+	if err := c.Conn.Send("PING", data); err != nil {
+		return err
+	}
+	return c.Conn.Flush()
+}
+
+// Receive returns a pushed message as a Subscription, Message, Pong or error.
+// The return value is intended to be used directly in a type switch as
 // illustrated in the PubSubConn example.
 func (c PubSubConn) Receive() interface{} {
-	reply, err := Values(c.Conn.Receive())
+	return c.receiveInternal(c.Conn.Receive())
+}
+
+// ReceiveWithTimeout is like Receive, but it allows the application to
+// override the connection's default timeout.
+func (c PubSubConn) ReceiveWithTimeout(timeout time.Duration) interface{} {
+	return c.receiveInternal(ReceiveWithTimeout(c.Conn, timeout))
+}
+
+func (c PubSubConn) receiveInternal(replyArg interface{}, errArg error) interface{} {
+	reply, err := Values(replyArg, errArg)
 	if err != nil {
 		return err
 	}
@@ -113,17 +136,23 @@ func (c PubSubConn) Receive() interface{} {
 		}
 		return m
 	case "pmessage":
-		var pm PMessage
-		if _, err := Scan(reply, &pm.Pattern, &pm.Channel, &pm.Data); err != nil {
+		var m Message
+		if _, err := Scan(reply, &m.Pattern, &m.Channel, &m.Data); err != nil {
 			return err
 		}
-		return pm
+		return m
 	case "subscribe", "psubscribe", "unsubscribe", "punsubscribe":
 		s := Subscription{Kind: kind}
 		if _, err := Scan(reply, &s.Channel, &s.Count); err != nil {
 			return err
 		}
 		return s
+	case "pong":
+		var p Pong
+		if _, err := Scan(reply, &p.Data); err != nil {
+			return err
+		}
+		return p
 	}
 	return errors.New("redigo: unknown pubsub notification")
 }
