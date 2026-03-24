@@ -235,6 +235,31 @@ func TestNewAppWithRedisTLSSentinelCluster(t *testing.T) {
 	runAppWithConfig(t, config)
 }
 
+func TestNewAppWithRedisSentinelACL(t *testing.T) {
+	config := configuration.Configuration{
+		Storage: configuration.Storage{
+			"testdriver": nil,
+			"maintenance": configuration.Parameters{"uploadpurging": map[interface{}]interface{}{
+				"enabled": false,
+			}},
+		},
+		Auth: configuration.Auth{
+			// For now, we simply test that new auth results in a viable
+			// application.
+			"silly": {
+				"realm":   "realm-test",
+				"service": "service-test",
+			},
+		},
+	}
+	config.Redis.Addr = "192.168.0.11:30013,192.168.0.12:30014,192.168.0.12:30015"
+	config.Redis.DB = 0
+	config.Redis.SentinelMasterSet = "mymaster"
+	config.Redis.Username = "foo"
+	config.Redis.Password = "mypwd"
+	runAppWithConfig(t, config)
+}
+
 func runAppWithConfig(t *testing.T, config configuration.Configuration) {
 	ctx := context.Background()
 	// Mostly, with this test, given a sane configuration, we are simply

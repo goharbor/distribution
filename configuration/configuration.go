@@ -174,6 +174,9 @@ type Configuration struct {
 		// Password string to use when making a connection.
 		Password string `yaml:"password,omitempty"`
 
+		// Username string to use when making a connection.
+		Username string `yaml:"username,omitempty"`
+
 		// DB specifies the database to connect to on the redis instance.
 		DB int `yaml:"db,omitempty"`
 
