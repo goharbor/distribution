@@ -9,13 +9,15 @@
 //
 // Example:
 //
-//    // Sign URL to be valid for 1 hour from now.
-//    signer := sign.NewURLSigner(keyID, privKey)
-//    signedURL, err := signer.Sign(rawURL, time.Now().Add(1*time.Hour))
-//    if err != nil {
-//        log.Fatalf("Failed to sign url, err: %s\n", err.Error())
-//    }
+//	// Sign URL to be valid for 1 hour from now.
+//	signer := sign.NewURLSigner(keyID, privKey)
+//	signedURL, err := signer.Sign(rawURL, time.Now().Add(1*time.Hour))
+//	if err != nil {
+//	    log.Fatalf("Failed to sign url, err: %s\n", err.Error())
+//	}
 //
+// Deprecated: aws-sdk-go is deprecated. Use aws-sdk-go-v2.
+// See https://aws.amazon.com/blogs/developer/announcing-end-of-support-for-aws-sdk-for-go-v1-on-july-31-2025/.
 package sign
 
 import (
@@ -54,13 +56,12 @@ func NewURLSigner(keyID string, privKey *rsa.PrivateKey) *URLSigner {
 //
 // Example:
 //
-//    // Sign URL to be valid for 1 hour from now.
-//    signer := sign.NewURLSigner(keyID, privKey)
-//    signedURL, err := signer.Sign(rawURL, time.Now().Add(1*time.Hour))
-//    if err != nil {
-//        log.Fatalf("Failed to sign url, err: %s\n", err.Error())
-//    }
-//
+//	// Sign URL to be valid for 1 hour from now.
+//	signer := sign.NewURLSigner(keyID, privKey)
+//	signedURL, err := signer.Sign(rawURL, time.Now().Add(1*time.Hour))
+//	if err != nil {
+//	    log.Fatalf("Failed to sign url, err: %s\n", err.Error())
+//	}
 func (s URLSigner) Sign(url string, expires time.Time) (string, error) {
 	scheme, cleanedURL, err := cleanURLScheme(url)
 	if err != nil {
@@ -87,30 +88,29 @@ func (s URLSigner) Sign(url string, expires time.Time) (string, error) {
 //
 // Example:
 //
-//     // Sign URL to be valid for 30 minutes from now, expires one hour from now, and
-//     // restricted to the 192.0.2.0/24 IP address range.
-//     policy := &sign.Policy{
-//         Statements: []sign.Statement{
-//             {
-//                 Resource: rawURL,
-//                 Condition: sign.Condition{
-//                     // Optional IP source address range
-//                     IPAddress: &sign.IPAddress{SourceIP: "192.0.2.0/24"},
-//                     // Optional date URL is not valid until
-//                     DateGreaterThan: &sign.AWSEpochTime{time.Now().Add(30 * time.Minute)},
-//                     // Required date the URL will expire after
-//                     DateLessThan: &sign.AWSEpochTime{time.Now().Add(1 * time.Hour)},
-//                 },
-//             },
-//         },
-//     }
+//	// Sign URL to be valid for 30 minutes from now, expires one hour from now, and
+//	// restricted to the 192.0.2.0/24 IP address range.
+//	policy := &sign.Policy{
+//	    Statements: []sign.Statement{
+//	        {
+//	            Resource: rawURL,
+//	            Condition: sign.Condition{
+//	                // Optional IP source address range
+//	                IPAddress: &sign.IPAddress{SourceIP: "192.0.2.0/24"},
+//	                // Optional date URL is not valid until
+//	                DateGreaterThan: &sign.AWSEpochTime{time.Now().Add(30 * time.Minute)},
+//	                // Required date the URL will expire after
+//	                DateLessThan: &sign.AWSEpochTime{time.Now().Add(1 * time.Hour)},
+//	            },
+//	        },
+//	    },
+//	}
 //
-//     signer := sign.NewURLSigner(keyID, privKey)
-//     signedURL, err := signer.SignWithPolicy(rawURL, policy)
-//     if err != nil {
-//         log.Fatalf("Failed to sign url, err: %s\n", err.Error())
-//     }
-//
+//	signer := sign.NewURLSigner(keyID, privKey)
+//	signedURL, err := signer.SignWithPolicy(rawURL, policy)
+//	if err != nil {
+//	    log.Fatalf("Failed to sign url, err: %s\n", err.Error())
+//	}
 func (s URLSigner) SignWithPolicy(url string, p *Policy) (string, error) {
 	scheme, cleanedURL, err := cleanURLScheme(url)
 	if err != nil {

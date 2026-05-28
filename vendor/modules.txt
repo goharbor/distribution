@@ -14,9 +14,11 @@ github.com/FZambia/sentinel
 # github.com/Shopify/logrus-bugsnag v0.0.0-20171204204709-577dee27f20d
 ## explicit
 github.com/Shopify/logrus-bugsnag
-# github.com/aws/aws-sdk-go v1.15.11
-## explicit
+# github.com/aws/aws-sdk-go v1.55.8
+## explicit; go 1.19
 github.com/aws/aws-sdk-go/aws
+github.com/aws/aws-sdk-go/aws/arn
+github.com/aws/aws-sdk-go/aws/auth/bearer
 github.com/aws/aws-sdk-go/aws/awserr
 github.com/aws/aws-sdk-go/aws/awsutil
 github.com/aws/aws-sdk-go/aws/client
@@ -25,6 +27,8 @@ github.com/aws/aws-sdk-go/aws/corehandlers
 github.com/aws/aws-sdk-go/aws/credentials
 github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds
 github.com/aws/aws-sdk-go/aws/credentials/endpointcreds
+github.com/aws/aws-sdk-go/aws/credentials/processcreds
+github.com/aws/aws-sdk-go/aws/credentials/ssocreds
 github.com/aws/aws-sdk-go/aws/credentials/stscreds
 github.com/aws/aws-sdk-go/aws/csm
 github.com/aws/aws-sdk-go/aws/defaults
@@ -33,21 +37,37 @@ github.com/aws/aws-sdk-go/aws/endpoints
 github.com/aws/aws-sdk-go/aws/request
 github.com/aws/aws-sdk-go/aws/session
 github.com/aws/aws-sdk-go/aws/signer/v4
+github.com/aws/aws-sdk-go/internal/context
+github.com/aws/aws-sdk-go/internal/ini
+github.com/aws/aws-sdk-go/internal/s3shared
+github.com/aws/aws-sdk-go/internal/s3shared/arn
+github.com/aws/aws-sdk-go/internal/s3shared/s3err
 github.com/aws/aws-sdk-go/internal/sdkio
+github.com/aws/aws-sdk-go/internal/sdkmath
 github.com/aws/aws-sdk-go/internal/sdkrand
 github.com/aws/aws-sdk-go/internal/sdkuri
 github.com/aws/aws-sdk-go/internal/shareddefaults
+github.com/aws/aws-sdk-go/internal/strings
+github.com/aws/aws-sdk-go/internal/sync/singleflight
+github.com/aws/aws-sdk-go/private/checksum
 github.com/aws/aws-sdk-go/private/protocol
 github.com/aws/aws-sdk-go/private/protocol/eventstream
 github.com/aws/aws-sdk-go/private/protocol/eventstream/eventstreamapi
+github.com/aws/aws-sdk-go/private/protocol/json/jsonutil
+github.com/aws/aws-sdk-go/private/protocol/jsonrpc
 github.com/aws/aws-sdk-go/private/protocol/query
 github.com/aws/aws-sdk-go/private/protocol/query/queryutil
 github.com/aws/aws-sdk-go/private/protocol/rest
+github.com/aws/aws-sdk-go/private/protocol/restjson
 github.com/aws/aws-sdk-go/private/protocol/restxml
 github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil
 github.com/aws/aws-sdk-go/service/cloudfront/sign
 github.com/aws/aws-sdk-go/service/s3
+github.com/aws/aws-sdk-go/service/sso
+github.com/aws/aws-sdk-go/service/sso/ssoiface
+github.com/aws/aws-sdk-go/service/ssooidc
 github.com/aws/aws-sdk-go/service/sts
+github.com/aws/aws-sdk-go/service/sts/stsiface
 # github.com/beorn7/perks v0.0.0-20160804104726-4c0e84591b9a
 ## explicit
 github.com/beorn7/perks/quantile
@@ -85,9 +105,6 @@ github.com/docker/go-metrics
 # github.com/docker/libtrust v0.0.0-20150114040149-fa567046d9b1
 ## explicit
 github.com/docker/libtrust
-# github.com/go-ini/ini v1.25.4
-## explicit
-github.com/go-ini/ini
 # github.com/golang/protobuf v0.0.0-20160321223353-8d92cf5fc15a
 ## explicit
 github.com/golang/protobuf/proto
@@ -103,11 +120,11 @@ github.com/gorilla/handlers
 # github.com/gorilla/mux v1.3.1-0.20170228224354-599cba5e7b61
 ## explicit
 github.com/gorilla/mux
-# github.com/inconshreveable/mousetrap v1.0.0
-## explicit
+# github.com/inconshreveable/mousetrap v1.1.0
+## explicit; go 1.18
 github.com/inconshreveable/mousetrap
-# github.com/jmespath/go-jmespath v0.0.0-20160803190731-bd40a432e4c7
-## explicit
+# github.com/jmespath/go-jmespath v0.4.0
+## explicit; go 1.14
 github.com/jmespath/go-jmespath
 # github.com/marstr/guid v1.1.0
 ## explicit
@@ -159,13 +176,11 @@ github.com/satori/go.uuid
 # github.com/sirupsen/logrus v1.0.1-0.20170620144510-3d4380f53a34
 ## explicit
 github.com/sirupsen/logrus
-# github.com/smartystreets/goconvey v1.8.1
-## explicit; go 1.18
-# github.com/spf13/cobra v0.0.0-20150605180824-312092086bed
-## explicit
+# github.com/spf13/cobra v1.10.2
+## explicit; go 1.15
 github.com/spf13/cobra
-# github.com/spf13/pflag v0.0.0-20150601220040-564482062245
-## explicit
+# github.com/spf13/pflag v1.0.10
+## explicit; go 1.12
 github.com/spf13/pflag
 # github.com/xenolf/lego v0.3.2-0.20160613233155-a9d8cec0e656
 ## explicit
@@ -179,19 +194,21 @@ github.com/yvasiyarov/gorelic
 # github.com/yvasiyarov/newrelic_platform_go v0.0.0-20140908184405-b21fdbd4370f
 ## explicit
 github.com/yvasiyarov/newrelic_platform_go
-# golang.org/x/crypto v0.14.0
-## explicit; go 1.17
+# golang.org/x/crypto v0.52.0
+## explicit; go 1.25.0
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/ocsp
-# golang.org/x/net v0.17.0
-## explicit; go 1.17
+# golang.org/x/net v0.54.0
+## explicit; go 1.25.0
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
+golang.org/x/net/internal/httpcommon
+golang.org/x/net/internal/httpsfv
 golang.org/x/net/internal/timeseries
 golang.org/x/net/publicsuffix
 golang.org/x/net/trace
@@ -202,11 +219,11 @@ golang.org/x/oauth2/google
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sys v0.13.0
-## explicit; go 1.17
+# golang.org/x/sys v0.45.0
+## explicit; go 1.25.0
 golang.org/x/sys/unix
-# golang.org/x/text v0.13.0
-## explicit; go 1.17
+# golang.org/x/text v0.37.0
+## explicit; go 1.25.0
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
@@ -258,9 +275,9 @@ gopkg.in/check.v1
 gopkg.in/square/go-jose.v1
 gopkg.in/square/go-jose.v1/cipher
 gopkg.in/square/go-jose.v1/json
-# gopkg.in/yaml.v2 v2.2.8
+# gopkg.in/yaml.v3 v3.0.1
 ## explicit
-gopkg.in/yaml.v2
+gopkg.in/yaml.v3
 # rsc.io/letsencrypt v0.0.0-20161112011014-e770c10b0f1a => github.com/dmcgowan/letsencrypt v0.0.0-20161112011014-e770c10b0f1a
 ## explicit
 rsc.io/letsencrypt

@@ -1,33 +1,56 @@
+version: "2"
+run:
+  timeout: 2m
 linters:
   enable:
-    - staticcheck
-    - unconvert
-    - gofmt
-    - goimports
-    - golint
-    - ineffassign
-    - vet
-    - unused
     - misspell
+    - unconvert
   disable:
     - errcheck
-
-linters-settings:
-  revive:
+  settings:
+    revive:
+      rules:
+        - name: unused-parameter
+          disabled: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
     rules:
-      # TODO(thaJeztah): temporarily disabled the "unused-parameter" check.
-      # It produces many warnings, and some of those may need to be looked at.
-      - name: unused-parameter
-        disabled: true
+      - linters:
+          - staticcheck
+        text: 'SA1019: "io/ioutil" has been deprecated'
 
-run:
-  deadline: 2m
-  skip-dirs:
-    - vendor
+      # Ignore Go vet inline modernization suggestions for legacy code.
+      - linters:
+          - govet
+        text: 'inline:'
 
-issues:
-  exclude-rules:
-    # io/ioutil is deprecated, but won't be removed until Go v2. It's safe to ignore for the release/2.8 branch.
-    - text: "SA1019: \"io/ioutil\" has been deprecated"
-      linters:
-        - staticcheck
+      # Ignore non-constant format string warnings in legacy tests.
+      - linters:
+          - govet
+        text: 'printf: non-constant format string'
+
+      # Ignore Staticcheck quickfix/style/deprecation checks for now.
+      - linters:
+          - staticcheck
+        text: 'QF1003:|QF1004:|QF1008:|ST1005:|SA1019:'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+      - vendor$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+      - vendor$

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	. "gopkg.in/check.v1"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // Hook up gocheck into the "go test" runner

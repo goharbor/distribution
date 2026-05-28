@@ -17,7 +17,7 @@ var SDKVersionUserAgentHandler = request.NamedHandler{
 }
 
 const execEnvVar = `AWS_EXECUTION_ENV`
-const execEnvUAKey = `exec_env`
+const execEnvUAKey = `exec-env`
 
 // AddHostExecEnvUserAgentHander is a request handler appending the SDK's
 // execution environment to the user agent.
@@ -33,5 +33,15 @@ var AddHostExecEnvUserAgentHander = request.NamedHandler{
 		}
 
 		request.AddToUserAgent(r, execEnvUAKey+"/"+v)
+	},
+}
+
+var AddAwsInternal = request.NamedHandler{
+	Name: "core.AddAwsInternal",
+	Fn: func(r *request.Request) {
+		if len(isAwsInternal) == 0 {
+			return
+		}
+		request.AddToUserAgent(r, isAwsInternal)
 	},
 }
