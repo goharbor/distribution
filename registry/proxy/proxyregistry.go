@@ -41,7 +41,7 @@ func NewRegistryPullThroughCache(ctx context.Context, registry distribution.Name
 		var r reference.Canonical
 		var ok bool
 		if r, ok = ref.(reference.Canonical); !ok {
-			return fmt.Errorf("unexpected reference type : %T", ref)
+			return fmt.Errorf("unexpected reference type: %T", ref)
 		}
 
 		repo, err := registry.Repository(ctx, r)
@@ -69,7 +69,7 @@ func NewRegistryPullThroughCache(ctx context.Context, registry distribution.Name
 		var r reference.Canonical
 		var ok bool
 		if r, ok = ref.(reference.Canonical); !ok {
-			return fmt.Errorf("unexpected reference type : %T", ref)
+			return fmt.Errorf("unexpected reference type: %T", ref)
 		}
 
 		repo, err := registry.Repository(ctx, r)

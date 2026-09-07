@@ -266,7 +266,7 @@ are reported as part of 4xx responses, in a json response body. One or more
 errors will be returned in the following format:
 
     {
-        "errors:" [{
+        "errors": [{
                 "code": <error identifier>,
                 "message": <message describing condition>,
                 "detail": <unstructured>
@@ -855,7 +855,7 @@ identifying the missing blob. An error is returned for each unknown blob. The
 response format is as follows:
 
     {
-        "errors:" [{
+        "errors": [{
                 "code": "BLOB_UNKNOWN",
                 "message": "blob unknown to registry",
                 "detail": {
@@ -1211,7 +1211,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -1249,7 +1249,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -1349,7 +1349,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -1387,7 +1387,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -1424,7 +1424,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -1461,7 +1461,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -1504,7 +1504,7 @@ The following parameters should be specified on the request:
 |Name|Kind|Description|
 |----|----|-----------|
 |`name`|path|Name of the target repository.|
-|`n`|query|Limit the number of entries in each response. It not present, all entries will be returned.|
+|`n`|query|Limit the number of entries in each response. If not present, all entries will be returned.|
 |`last`|query|Result set will include values lexically after last.|
 
 
@@ -1548,7 +1548,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -1586,7 +1586,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -1623,7 +1623,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -1660,7 +1660,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -1764,7 +1764,7 @@ The following headers will be returned with the response:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -1797,7 +1797,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -1835,7 +1835,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -1872,7 +1872,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -1909,7 +1909,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2010,7 +2010,7 @@ The following headers will be returned with the response:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2046,7 +2046,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2084,7 +2084,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2121,7 +2121,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2158,7 +2158,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2194,7 +2194,7 @@ The error codes that may be included in the response body are enumerated below:
 Content-Type: application/json; charset=utf-8
 
 {
-    "errors:" [{
+    "errors": [{
             "code": "BLOB_UNKNOWN",
             "message": "blob unknown to registry",
             "detail": {
@@ -2282,7 +2282,7 @@ The following parameters should be specified on the request:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2315,7 +2315,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2353,7 +2353,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2390,7 +2390,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2427,7 +2427,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2463,7 +2463,7 @@ The error codes that may be included in the response body are enumerated below:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2588,7 +2588,7 @@ The following headers will be returned with the response:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2619,7 +2619,7 @@ The error codes that may be included in the response body are enumerated below:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2652,7 +2652,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2690,7 +2690,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2727,7 +2727,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2764,7 +2764,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2848,7 +2848,7 @@ The following headers will be returned with the response:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2879,7 +2879,7 @@ The error codes that may be included in the response body are enumerated below:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2922,7 +2922,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2960,7 +2960,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -2997,7 +2997,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3034,7 +3034,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3137,7 +3137,7 @@ The error codes that may be included in the response body are enumerated below:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3168,7 +3168,7 @@ The error codes that may be included in the response body are enumerated below:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3200,7 +3200,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3238,7 +3238,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3275,7 +3275,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3312,7 +3312,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3361,7 +3361,7 @@ POST /v2/<name>/blobs/uploads/?digest=<digest>
 Host: <registry host>
 Authorization: <scheme> <token>
 Content-Length: <length of blob>
-Content-Type: application/octect-stream
+Content-Type: application/octet-stream
 
 <binary data>
 ```
@@ -3450,7 +3450,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3488,7 +3488,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3525,7 +3525,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3562,7 +3562,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3667,7 +3667,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3705,7 +3705,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3742,7 +3742,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3779,7 +3779,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3902,7 +3902,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3940,7 +3940,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -3977,7 +3977,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4014,7 +4014,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4107,7 +4107,7 @@ The following headers will be returned with the response:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4139,7 +4139,7 @@ The error codes that may be included in the response body are enumerated below:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4171,7 +4171,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4209,7 +4209,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4246,7 +4246,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4283,7 +4283,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4375,7 +4375,7 @@ The following headers will be returned with the response:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4407,7 +4407,7 @@ The error codes that may be included in the response body are enumerated below:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4439,7 +4439,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4477,7 +4477,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4514,7 +4514,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4551,7 +4551,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4602,8 +4602,8 @@ The following parameters should be specified on the request:
 |----|----|-----------|
 |`Host`|header|Standard HTTP Host Header. Should be set to the registry host.|
 |`Authorization`|header|An RFC7235 compliant authorization header.|
-|`Content-Range`|header|Range of bytes identifying the desired block of content represented by the body. Start must the end offset retrieved via status check plus one. Note that this is a non-standard use of the `Content-Range` header.|
-|`Content-Length`|header|Length of the chunk being uploaded, corresponding the length of the request body.|
+|`Content-Range`|header|Range of bytes identifying the desired block of content represented by the body. Start must be the end offset retrieved via status check plus one. Note that this is a non-standard use of the `Content-Range` header.|
+|`Content-Length`|header|Length of the chunk being uploaded, corresponding to the length of the request body.|
 |`name`|path|Name of the target repository.|
 |`uuid`|path|A uuid identifying the upload. This field can accept characters that match `[a-zA-Z0-9-_.=]+`.|
 
@@ -4641,7 +4641,7 @@ The following headers will be returned with the response:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4673,7 +4673,7 @@ The error codes that may be included in the response body are enumerated below:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4715,7 +4715,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4753,7 +4753,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4790,7 +4790,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4827,7 +4827,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4921,7 +4921,7 @@ The following headers will be returned with the response:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4954,7 +4954,7 @@ The error codes that may be included in the response body are enumerated below:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -4986,7 +4986,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -5024,7 +5024,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -5061,7 +5061,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -5098,7 +5098,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -5182,7 +5182,7 @@ The following headers will be returned with the response:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -5213,7 +5213,7 @@ The error codes that may be included in the response body are enumerated below:
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -5245,7 +5245,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -5283,7 +5283,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -5320,7 +5320,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -5357,7 +5357,7 @@ Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -5449,7 +5449,7 @@ The following parameters should be specified on the request:
 
 |Name|Kind|Description|
 |----|----|-----------|
-|`n`|query|Limit the number of entries in each response. It not present, all entries will be returned.|
+|`n`|query|Limit the number of entries in each response. If not present, all entries will be returned.|
 |`last`|query|Result set will include values lexically after last.|
 
 

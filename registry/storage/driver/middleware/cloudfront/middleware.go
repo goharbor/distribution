@@ -112,18 +112,29 @@ func newCloudFrontStorageMiddleware(storageDriver storagedriver.StorageDriver, o
 		}
 	}
 
-	// parse updatefrenquency
+	// parse updatefrequency
 	updateFrequency := defaultUpdateFrequency
-	if u, ok := options["updatefrenquency"]; ok {
+	if u, ok := options["updatefrequency"]; ok {
 		switch u := u.(type) {
 		case time.Duration:
 			updateFrequency = u
 		case string:
 			updateFreq, err := time.ParseDuration(u)
 			if err != nil {
-				return nil, fmt.Errorf("invalid updatefrenquency: %s", err)
+				return nil, fmt.Errorf("invalid updatefrequency: %s", err)
 			}
-			duration = updateFreq
+			updateFrequency = updateFreq
+		}
+	} else if u, ok := options["updatefrenquency"]; ok {
+		switch u := u.(type) {
+		case time.Duration:
+			updateFrequency = u
+		case string:
+			updateFreq, err := time.ParseDuration(u)
+			if err != nil {
+				return nil, fmt.Errorf("invalid updatefrequency: %s", err)
+			}
+			updateFrequency = updateFreq
 		}
 	}
 
@@ -161,7 +172,7 @@ func newCloudFrontStorageMiddleware(storageDriver storagedriver.StorageDriver, o
 					return nil, fmt.Errorf("awsRegion is not defined")
 				}
 			default:
-				return nil, fmt.Errorf("ipfilteredby only allows a string the following value: none|aws|awsregion")
+				return nil, fmt.Errorf("ipfilteredby only allows a string with the following value: none|aws|awsregion")
 			}
 		} else {
 			return nil, fmt.Errorf("ipfilteredby only allows a string with the following value: none|aws|awsregion")

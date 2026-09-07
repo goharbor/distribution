@@ -79,7 +79,7 @@ var (
 		Description: `During upload, manifests undergo several checks ensuring
 		validity. If those checks fail, this error may be returned, unless a
 		more specific error is included. The detail will contain information
-		the failed validation.`,
+		about the failed validation.`,
 		HTTPStatusCode: http.StatusBadRequest,
 	})
 

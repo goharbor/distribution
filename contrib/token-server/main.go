@@ -102,7 +102,7 @@ func main() {
 	if cert == "" {
 		err = http.ListenAndServe(addr, router)
 	} else if certKey == "" {
-		logrus.Fatalf("Must provide certficate (-tlscert) and key (-tlskey)")
+		logrus.Fatalf("Must provide certificate (-tlscert) and key (-tlskey)")
 	} else {
 		err = http.ListenAndServeTLS(addr, cert, certKey, router)
 	}
@@ -147,7 +147,7 @@ func newRefreshToken() string {
 		randInt, err := rand.Int(rand.Reader, big.NewInt(max))
 		// let '0' serves the failure case
 		if err != nil {
-			logrus.Infof("Error on making refersh token: %v", err)
+			logrus.Infof("Error on making refresh token: %v", err)
 			randInt = big.NewInt(0)
 		}
 		s[i] = refreshCharacters[randInt.Int64()]

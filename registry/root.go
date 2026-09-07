@@ -54,26 +54,26 @@ var GCCmd = &cobra.Command{
 
 		driver, err := factory.Create(config.Storage.Type(), config.Storage.Parameters())
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to construct %s driver: %v", config.Storage.Type(), err)
+			fmt.Fprintf(os.Stderr, "failed to construct %s driver: %v\n", config.Storage.Type(), err)
 			os.Exit(1)
 		}
 
 		ctx := dcontext.Background()
 		ctx, err = configureLogging(ctx, config)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "unable to configure logging with config: %s", err)
+			fmt.Fprintf(os.Stderr, "unable to configure logging with config: %s\n", err)
 			os.Exit(1)
 		}
 
 		k, err := libtrust.GenerateECP256PrivateKey()
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 
 		registry, err := storage.NewRegistry(ctx, driver, storage.Schema1SigningKey(k))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to construct registry: %v", err)
+			fmt.Fprintf(os.Stderr, "failed to construct registry: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -82,7 +82,7 @@ var GCCmd = &cobra.Command{
 			RemoveUntagged: removeUntagged,
 		})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to garbage collect: %v", err)
+			fmt.Fprintf(os.Stderr, "failed to garbage collect: %v\n", err)
 			os.Exit(1)
 		}
 	},

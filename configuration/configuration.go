@@ -412,7 +412,7 @@ func (loglevel *Loglevel) UnmarshalYAML(unmarshal func(interface{}) error) error
 	switch loglevelString {
 	case "error", "warn", "info", "debug":
 	default:
-		return fmt.Errorf("invalid loglevel %s Must be one of [error, warn, info, debug]", loglevelString)
+		return fmt.Errorf("invalid loglevel %s: must be one of [error, warn, info, debug]", loglevelString)
 	}
 
 	*loglevel = Loglevel(loglevelString)

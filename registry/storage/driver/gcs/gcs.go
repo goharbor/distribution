@@ -136,7 +136,7 @@ func FromParameters(parameters map[string]interface{}) (storagedriver.StorageDri
 		case int, uint, int32, uint32, uint64, int64:
 			chunkSize = int(reflect.ValueOf(v).Convert(reflect.TypeOf(chunkSize)).Int())
 		default:
-			return nil, fmt.Errorf("invalid valud for chunksize: %#v", chunkSizeParam)
+			return nil, fmt.Errorf("invalid value for chunksize: %#v", chunkSizeParam)
 		}
 
 		if chunkSize < minChunkSize {

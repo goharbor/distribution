@@ -99,7 +99,7 @@ var (
 		{
 			Name:        "n",
 			Type:        "integer",
-			Description: "Limit the number of entries in each response. It not present, all entries will be returned.",
+			Description: "Limit the number of entries in each response. If not present, all entries will be returned.",
 			Format:      "<integer>",
 			Required:    false,
 		},
@@ -227,7 +227,7 @@ const (
 }`
 
 	errorsBody = `{
-	"errors:" [
+	"errors": [
 	    {
             "code": <error code>,
             "message": "<error message>",
@@ -631,7 +631,7 @@ var routeDescriptors = []RouteDescriptor{
 								Body: BodyDescriptor{
 									ContentType: "application/json; charset=utf-8",
 									Format: `{
-    "errors:" [{
+    "errors": [{
             "code": "BLOB_UNKNOWN",
             "message": "blob unknown to registry",
             "detail": {
@@ -988,7 +988,7 @@ var routeDescriptors = []RouteDescriptor{
 							},
 						},
 						Body: BodyDescriptor{
-							ContentType: "application/octect-stream",
+							ContentType: "application/octet-stream",
 							Format:      "<binary data>",
 						},
 						Successes: []ResponseDescriptor{
@@ -1304,13 +1304,13 @@ var routeDescriptors = []RouteDescriptor{
 								Type:        "header",
 								Format:      "<start of range>-<end of range, inclusive>",
 								Required:    true,
-								Description: "Range of bytes identifying the desired block of content represented by the body. Start must the end offset retrieved via status check plus one. Note that this is a non-standard use of the `Content-Range` header.",
+								Description: "Range of bytes identifying the desired block of content represented by the body. Start must be the end offset retrieved via status check plus one. Note that this is a non-standard use of the `Content-Range` header.",
 							},
 							{
 								Name:        "Content-Length",
 								Type:        "integer",
 								Format:      "<length of chunk>",
-								Description: "Length of the chunk being uploaded, corresponding the length of the request body.",
+								Description: "Length of the chunk being uploaded, corresponding to the length of the request body.",
 							},
 						},
 						Body: BodyDescriptor{
@@ -1577,7 +1577,7 @@ var routeDescriptors = []RouteDescriptor{
 	"repositories": [
 		<name>,
 		...
-	]
+	],
 	"next": "<url>?last=<name>&n=<last value of n>"
 }`,
 								},

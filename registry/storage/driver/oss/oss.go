@@ -157,7 +157,7 @@ func FromParameters(parameters map[string]interface{}) (*Driver, error) {
 		case int, uint, int32, uint32, uint64:
 			chunkSize = reflect.ValueOf(v).Convert(reflect.TypeOf(chunkSize)).Int()
 		default:
-			return nil, fmt.Errorf("invalid valud for chunksize: %#v", chunkSizeParam)
+			return nil, fmt.Errorf("invalid value for chunksize: %#v", chunkSizeParam)
 		}
 
 		if chunkSize < minChunkSize {
