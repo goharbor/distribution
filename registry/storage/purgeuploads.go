@@ -70,7 +70,11 @@ func getOutstandingUploads(ctx context.Context, driver storageDriver.StorageDriv
 	err = driver.Walk(ctx, root, func(fileInfo storageDriver.FileInfo) error {
 		filePath := fileInfo.Path()
 		_, file := path.Split(filePath)
-		if file[0] == '_' {
+		// path.Split returns file == "" for a path that ends in "/" (e.g. an
+		// S3 directory object that a delimited listing surfaces as an empty key).
+		// Indexing file[0] then panics and takes down the whole PurgeUploads
+		// goroutine (see #4713 / harbor#23795).
+		if len(file) > 0 && file[0] == '_' {
 			// Reserved directory
 			inUploadDir = (file == "_uploads")
 
