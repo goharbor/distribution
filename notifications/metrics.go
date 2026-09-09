@@ -137,8 +137,10 @@ func init() {
 			}
 
 			epjson.Name = v.Name()
-			epjson.URL = v.URL()
-			epjson.EndpointConfig = v.EndpointConfig
+			epjson.URL = SanitizeURL(v.URL())
+			epCfg := v.EndpointConfig
+			epCfg.Headers = SanitizeHeaders(epCfg.Headers)
+			epjson.EndpointConfig = epCfg
 
 			v.ReadMetrics(&epjson.Metrics)
 

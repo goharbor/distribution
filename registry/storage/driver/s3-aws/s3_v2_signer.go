@@ -210,9 +210,6 @@ func (v2 *signer) Sign() error {
 		headers["Authorization"] = []string{"AWS " + accessKey + ":" + v2.signature}
 	}
 
-	log.WithFields(log.Fields{
-		"string-to-sign": v2.stringToSign,
-		"signature":      v2.signature,
-	}).Debugln("request signature")
+	log.Debugln("request signature")
 	return nil
 }
