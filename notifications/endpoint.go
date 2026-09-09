@@ -2,6 +2,8 @@ package notifications
 
 import (
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/docker/distribution/configuration"
@@ -81,6 +83,45 @@ func (e *Endpoint) Name() string {
 // URL returns the url of the endpoint.
 func (e *Endpoint) URL() string {
 	return e.url
+}
+
+// SanitizeHeaders returns a copy of http.Header with sensitive values redacted.
+func SanitizeHeaders(headers http.Header) http.Header {
+	if headers == nil {
+		return nil
+	}
+	sanitizedHeaders := make(http.Header, len(headers))
+	for k, v := range headers {
+		lowerK := strings.ToLower(k)
+		if strings.EqualFold(k, "Authorization") ||
+			strings.EqualFold(k, "Proxy-Authorization") ||
+			strings.EqualFold(k, "Cookie") ||
+			strings.EqualFold(k, "Set-Cookie") ||
+			strings.Contains(lowerK, "token") ||
+			strings.Contains(lowerK, "secret") ||
+			strings.Contains(lowerK, "password") ||
+			strings.Contains(lowerK, "key") {
+			sanitizedHeaders[k] = []string{"********"}
+		} else {
+			sanitizedHeaders[k] = v
+		}
+	}
+	return sanitizedHeaders
+}
+
+// SanitizeURL returns a URL string with sensitive userinfo credentials redacted.
+func SanitizeURL(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	if u.User != nil {
+		if _, hasPassword := u.User.Password(); hasPassword {
+			return u.Redacted()
+		}
+		u.User = url.User("xxxxx")
+	}
+	return u.String()
 }
 
 // ReadMetrics populates em with metrics from the endpoint.

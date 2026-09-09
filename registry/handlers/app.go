@@ -456,7 +456,9 @@ func (app *App) configureEvents(configuration *configuration.Configuration) {
 			continue
 		}
 
-		dcontext.GetLogger(app).Infof("configuring endpoint %v (%v), timeout=%s, headers=%v", endpoint.Name, endpoint.URL, endpoint.Timeout, endpoint.Headers)
+		sanitizedHeaders := notifications.SanitizeHeaders(endpoint.Headers)
+		sanitizedURL := notifications.SanitizeURL(endpoint.URL)
+		dcontext.GetLogger(app).Infof("configuring endpoint %v (%v), timeout=%s, headers=%v", endpoint.Name, sanitizedURL, endpoint.Timeout, sanitizedHeaders)
 		endpoint := notifications.NewEndpoint(endpoint.Name, endpoint.URL, notifications.EndpointConfig{
 			Timeout:           endpoint.Timeout,
 			Threshold:         endpoint.Threshold,

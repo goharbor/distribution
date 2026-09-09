@@ -149,8 +149,7 @@ func createHtpasswdFile(path string) error {
 		return err
 	}
 	dcontext.GetLoggerWithFields(context.Background(), map[interface{}]interface{}{
-		"user":     "docker",
-		"password": pass,
+		"user": "docker",
 	}).Warnf("htpasswd is missing, provisioning with default user")
 	return nil
 }

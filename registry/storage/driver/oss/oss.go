@@ -474,9 +474,7 @@ func (d *driver) URLFor(ctx context.Context, path string, options map[string]int
 			expiresTime = et
 		}
 	}
-	logrus.Infof("methodString: %s, expiresTime: %v", methodString, expiresTime)
 	signedURL := d.Bucket.SignedURLWithMethod(methodString, d.ossPath(path), expiresTime, nil, nil)
-	logrus.Infof("signed URL: %s", signedURL)
 	return signedURL, nil
 }
 
