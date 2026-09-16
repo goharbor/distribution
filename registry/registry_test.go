@@ -195,6 +195,22 @@ func TestGetCipherSuite(t *testing.T) {
 	if err == nil {
 		t.Error("did not return expected error about unknown cipher suite")
 	}
+
+	for _, suite := range []string{
+		"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
+		"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+	} {
+		if _, err := getCipherSuites([]string{suite}); err == nil {
+			t.Errorf("expected error for removed cipher suite %q, got nil", suite)
+		}
+	}
+
+	for _, suite := range defaultCipherSuites {
+		if suite == tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 ||
+			suite == tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 {
+			t.Errorf("unexpected cipher suite in defaultCipherSuites: %x", suite)
+		}
+	}
 }
 
 func buildRegistryTLSConfig(name, keyType string, cipherSuites []string) (*registryTLSConfig, error) {
