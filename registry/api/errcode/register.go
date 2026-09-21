@@ -27,7 +27,7 @@ var (
 	// ErrorCodeUnsupported is returned when an operation is not supported.
 	ErrorCodeUnsupported = Register("errcode", ErrorDescriptor{
 		Value:   "UNSUPPORTED",
-		Message: "The operation is unsupported.",
+		Message: "operation unsupported",
 		Description: `The operation was unsupported due to a missing
 		implementation or invalid set of parameters.`,
 		HTTPStatusCode: http.StatusMethodNotAllowed,

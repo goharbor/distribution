@@ -95,7 +95,7 @@ func (errs ErrManifestVerification) Error() string {
 		parts = append(parts, err.Error())
 	}
 
-	return fmt.Sprintf("errors verifying manifest: %v", strings.Join(parts, ","))
+	return fmt.Sprintf("errors verifying manifest: %v", strings.Join(parts, ", "))
 }
 
 // ErrManifestBlobUnknown returned when a referenced blob cannot be found.

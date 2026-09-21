@@ -1146,7 +1146,7 @@ The error codes encountered via the API are enumerated in the following table:
  `TAG_INVALID` | manifest tag did not match URI | During a manifest upload, if the tag in the manifest does not match the uri tag, this error will be returned.
  `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate.
  `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource.
- `UNSUPPORTED` | The operation is unsupported. | The operation was unsupported due to a missing implementation or invalid set of parameters.
+ `UNSUPPORTED` | operation unsupported | The operation was unsupported due to a missing implementation or invalid set of parameters.
 
 
 
@@ -2232,7 +2232,7 @@ The error codes that may be included in the response body are enumerated below:
 
 |Code|Message|Description|
 |----|-------|-----------|
-| `UNSUPPORTED` | The operation is unsupported. | The operation was unsupported due to a missing implementation or invalid set of parameters. |
+| `UNSUPPORTED` | operation unsupported | The operation was unsupported due to a missing implementation or invalid set of parameters. |
 
 
 
@@ -2501,7 +2501,7 @@ The error codes that may be included in the response body are enumerated below:
 
 |Code|Message|Description|
 |----|-------|-----------|
-| `UNSUPPORTED` | The operation is unsupported. | The operation was unsupported due to a missing implementation or invalid set of parameters. |
+| `UNSUPPORTED` | operation unsupported | The operation was unsupported due to a missing implementation or invalid set of parameters. |
 
 
 
@@ -3187,7 +3187,7 @@ The error codes that may be included in the response body are enumerated below:
 
 |Code|Message|Description|
 |----|-------|-----------|
-| `UNSUPPORTED` | The operation is unsupported. | The operation was unsupported due to a missing implementation or invalid set of parameters. |
+| `UNSUPPORTED` | operation unsupported | The operation was unsupported due to a missing implementation or invalid set of parameters. |
 
 
 
@@ -3437,7 +3437,7 @@ The error codes that may be included in the response body are enumerated below:
 
 |Code|Message|Description|
 |----|-------|-----------|
-| `UNSUPPORTED` | The operation is unsupported. | The operation was unsupported due to a missing implementation or invalid set of parameters. |
+| `UNSUPPORTED` | operation unsupported | The operation was unsupported due to a missing implementation or invalid set of parameters. |
 
 
 
@@ -3889,7 +3889,7 @@ The error codes that may be included in the response body are enumerated below:
 
 |Code|Message|Description|
 |----|-------|-----------|
-| `UNSUPPORTED` | The operation is unsupported. | The operation was unsupported due to a missing implementation or invalid set of parameters. |
+| `UNSUPPORTED` | operation unsupported | The operation was unsupported due to a missing implementation or invalid set of parameters. |
 
 
 
@@ -4943,7 +4943,7 @@ The error codes that may be included in the response body are enumerated below:
 | `DIGEST_INVALID` | provided digest did not match uploaded content | When a blob is uploaded, the registry will check that the content matches the digest provided by the client. The error may include a detail structure with the key "digest", including the invalid digest string. This error may also be returned when a manifest includes an invalid layer digest. |
 | `NAME_INVALID` | invalid repository name | Invalid repository name encountered either during manifest validation or any API operation. |
 | `BLOB_UPLOAD_INVALID` | blob upload invalid | The blob upload encountered an error and can no longer proceed. |
-| `UNSUPPORTED` | The operation is unsupported. | The operation was unsupported due to a missing implementation or invalid set of parameters. |
+| `UNSUPPORTED` | operation unsupported | The operation was unsupported due to a missing implementation or invalid set of parameters. |
 
 
 

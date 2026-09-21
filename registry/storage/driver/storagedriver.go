@@ -134,7 +134,7 @@ type PathNotFoundError struct {
 }
 
 func (err PathNotFoundError) Error() string {
-	return fmt.Sprintf("%s: Path not found: %s", err.DriverName, err.Path)
+	return fmt.Sprintf("%s: path not found: %s", err.DriverName, err.Path)
 }
 
 // InvalidPathError is returned when the provided path is malformed.

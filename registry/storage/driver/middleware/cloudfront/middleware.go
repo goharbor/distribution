@@ -166,7 +166,7 @@ func newCloudFrontStorageMiddleware(storageDriver storagedriver.StorageDriver, o
 						}
 						awsIPs = newAWSIPs(ipRangesURL, updateFrequency, awsRegion)
 					} else {
-						return nil, fmt.Errorf("awsRegion must be a comma separated string of valid aws regions")
+						return nil, fmt.Errorf("awsRegion must be a comma-separated string of valid AWS regions")
 					}
 				} else {
 					return nil, fmt.Errorf("awsRegion is not defined")
