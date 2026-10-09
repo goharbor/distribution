@@ -1,6 +1,6 @@
 module github.com/docker/distribution
 
-go 1.26.5
+go 1.27.2
 
 require (
 	github.com/Azure/azure-sdk-for-go v16.2.1+incompatible

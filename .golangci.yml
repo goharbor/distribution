@@ -1,47 +1,54 @@
+version: "2"
 linters:
   enable:
-    - staticcheck
-    - unconvert
-    - gofmt
-    - goimports
-    - ineffassign
-    - vet
-    - unused
     - misspell
+    - unconvert
   disable:
     - errcheck
-
-linters-settings:
-  revive:
+  settings:
+    govet:
+      disable:
+        - inline
+    staticcheck:
+      checks:
+        - "SA*"
+    revive:
+      rules:
+        # TODO(thaJeztah): temporarily disabled the "unused-parameter" check.
+        # It produces many warnings, and some of those may need to be looked at.
+        - name: unused-parameter
+          disabled: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
     rules:
-      # TODO(thaJeztah): temporarily disabled the "unused-parameter" check.
-      # It produces many warnings, and some of those may need to be looked at.
-      - name: unused-parameter
-        disabled: true
-
-run:
-  deadline: 2m
-  skip-dirs:
-    - vendor
-
-issues:
-  exclude-rules:
-    # io/ioutil is deprecated, but won't be removed until Go v2. It's safe to ignore for the release/2.8 branch.
-    - text: "SA1019: \"io/ioutil\" has been deprecated"
-      linters:
-        - staticcheck
-
-    # Keep legacy code unchanged; suppress printf-style findings globally.
-    - text: 'printf: non-constant format string in call to \(\*testing\.common\)\.(Fatalf|Errorf)'
-      linters:
-        - govet
-
-    # Keep legacy code unchanged; suppress staticcheck's equivalent printf-style findings globally.
-    - text: 'SA1006: printf-style function with dynamic format string and no further arguments should use print-style function instead'
-      linters:
-        - staticcheck
-
-    # aws-sdk-go v1 is deprecated upstream; suppress only AWS SDK v1 deprecation findings.
-    - text: 'SA1019: "github\.com/aws/aws-sdk-go/.*" is deprecated'
-      linters:
-        - staticcheck
+      - linters:
+          - staticcheck
+        text: 'SA1019: .*io/ioutil.*'
+      - linters:
+          - govet
+        text: 'printf: non-constant format string in call to \(\*testing\.common\)\.(Fatalf|Errorf)'
+      - linters:
+          - staticcheck
+        text: 'SA1006: printf-style function with dynamic format string and no further arguments should use print-style function instead'
+      - linters:
+          - staticcheck
+        text: 'SA1019: .*(github\.com/aws/aws-sdk-go).*'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
