@@ -1115,6 +1115,7 @@ type writer struct {
 	size        int64
 	readyPart   []byte
 	pendingPart []byte
+	buffer      []byte // buffer to accumulate data for R2-compliant fixed-size chunks
 	closed      bool
 	committed   bool
 	cancelled   bool
@@ -1204,7 +1205,7 @@ func (w *writer) Write(p []byte) (int, error) {
 			}
 			defer resp.Body.Close()
 			w.parts = nil
-			w.readyPart, err = ioutil.ReadAll(resp.Body)
+			w.buffer, err = ioutil.ReadAll(resp.Body)
 			if err != nil {
 				return 0, err
 			}
@@ -1230,41 +1231,38 @@ func (w *writer) Write(p []byte) (int, error) {
 		}
 	}
 
-	var n int
+	// Append incoming data to buffer
+	w.buffer = append(w.buffer, p...)
+	bytesWritten := len(p)
 
-	for len(p) > 0 {
-		// If no parts are ready to write, fill up the first part
-		if neededBytes := int(w.driver.ChunkSize) - len(w.readyPart); neededBytes > 0 {
-			if len(p) >= neededBytes {
-				w.readyPart = append(w.readyPart, p[:neededBytes]...)
-				n += neededBytes
-				p = p[neededBytes:]
-			} else {
-				w.readyPart = append(w.readyPart, p...)
-				n += len(p)
-				p = nil
-			}
-		}
+	// Upload chunks of exactly ChunkSize bytes (R2 requirement: all parts except last must be same size)
+	chunkSize := int(w.driver.ChunkSize)
+	for len(w.buffer) >= chunkSize {
+		chunk := w.buffer[:chunkSize]
 
-		if neededBytes := int(w.driver.ChunkSize) - len(w.pendingPart); neededBytes > 0 {
-			if len(p) >= neededBytes {
-				w.pendingPart = append(w.pendingPart, p[:neededBytes]...)
-				n += neededBytes
-				p = p[neededBytes:]
-				err := w.flushPart()
-				if err != nil {
-					w.size += int64(n)
-					return n, err
-				}
-			} else {
-				w.pendingPart = append(w.pendingPart, p...)
-				n += len(p)
-				p = nil
-			}
+		partNumber := aws.Int64(int64(len(w.parts) + 1))
+		resp, err := w.driver.S3.UploadPart(&s3.UploadPartInput{
+			Bucket:     aws.String(w.driver.Bucket),
+			Key:        aws.String(w.key),
+			PartNumber: partNumber,
+			UploadId:   aws.String(w.uploadID),
+			Body:       bytes.NewReader(chunk),
+		})
+		if err != nil {
+			w.size += int64(bytesWritten)
+			return bytesWritten, err
 		}
+		w.parts = append(w.parts, &s3.Part{
+			ETag:       resp.ETag,
+			PartNumber: partNumber,
+			Size:       aws.Int64(int64(chunkSize)),
+		})
+
+		w.buffer = w.buffer[chunkSize:]
 	}
-	w.size += int64(n)
-	return n, nil
+
+	w.size += int64(bytesWritten)
+	return bytesWritten, nil
 }
 
 func (w *writer) Size() int64 {
@@ -1340,34 +1338,25 @@ func (w *writer) Commit() error {
 // flushPart flushes buffers to write a part to S3.
 // Only called by Write (with both buffers full) and Close/Commit (always)
 func (w *writer) flushPart() error {
-	if len(w.readyPart) == 0 && len(w.pendingPart) == 0 {
-		// nothing to write
-		return nil
+	// Flush remaining buffer as final part (R2-compliant chunking)
+	if len(w.buffer) > 0 {
+		partNumber := aws.Int64(int64(len(w.parts) + 1))
+		resp, err := w.driver.S3.UploadPart(&s3.UploadPartInput{
+			Bucket:     aws.String(w.driver.Bucket),
+			Key:        aws.String(w.key),
+			PartNumber: partNumber,
+			UploadId:   aws.String(w.uploadID),
+			Body:       bytes.NewReader(w.buffer),
+		})
+		if err != nil {
+			return err
+		}
+		w.parts = append(w.parts, &s3.Part{
+			ETag:       resp.ETag,
+			PartNumber: partNumber,
+			Size:       aws.Int64(int64(len(w.buffer))),
+		})
+		w.buffer = nil
 	}
-	if len(w.pendingPart) < int(w.driver.ChunkSize) {
-		// closing with a small pending part
-		// combine ready and pending to avoid writing a small part
-		w.readyPart = append(w.readyPart, w.pendingPart...)
-		w.pendingPart = nil
-	}
-
-	partNumber := aws.Int64(int64(len(w.parts) + 1))
-	resp, err := w.driver.S3.UploadPart(&s3.UploadPartInput{
-		Bucket:     aws.String(w.driver.Bucket),
-		Key:        aws.String(w.key),
-		PartNumber: partNumber,
-		UploadId:   aws.String(w.uploadID),
-		Body:       bytes.NewReader(w.readyPart),
-	})
-	if err != nil {
-		return err
-	}
-	w.parts = append(w.parts, &s3.Part{
-		ETag:       resp.ETag,
-		PartNumber: partNumber,
-		Size:       aws.Int64(int64(len(w.readyPart))),
-	})
-	w.readyPart = w.pendingPart
-	w.pendingPart = nil
 	return nil
 }
