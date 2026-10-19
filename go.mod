@@ -23,7 +23,7 @@ require (
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/yvasiyarov/gorelic v0.0.7-0.20141212073537-a9bba5b9ab50
-	golang.org/x/crypto v0.55.0
+	golang.org/x/crypto v0.57.0
 	golang.org/x/oauth2 v0.36.0
 	google.golang.org/api v0.0.0-20160322025152-9bf6e6e569ff
 	google.golang.org/cloud v0.0.0-20151119220103-975617b05ea8
@@ -68,9 +68,9 @@ require (
 	github.com/xenolf/lego v0.3.2-0.20160613233155-a9d8cec0e656 // indirect
 	github.com/yvasiyarov/go-metrics v0.0.0-20140926110328-57bccd1ccd43 // indirect
 	github.com/yvasiyarov/newrelic_platform_go v0.0.0-20140908184405-b21fdbd4370f // indirect
-	golang.org/x/net v0.58.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/grpc v1.83.2 // indirect
