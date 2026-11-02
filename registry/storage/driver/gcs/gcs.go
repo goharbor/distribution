@@ -427,16 +427,32 @@ func putContentsClose(wc *storage.Writer, contents []byte) error {
 	var nn int
 	var err error
 	for nn < size {
-		n, err := wc.Write(contents[nn:size])
+		var n int
+		n, err = wc.Write(contents[nn:size])
 		nn += n
 		if err != nil {
 			break
 		}
 	}
 	if err != nil {
+		wc.CloseWithError(err)
 		return err
 	}
-	return wc.Close()
+	if err = wc.Close(); err != nil {
+		return err
+	}
+	// The vendored client retries a failed insert with the already-drained body, so GCS
+	// can store 0 bytes and report success. Turn that into a 5xx so retry() rewrites it.
+	if obj := wc.Object(); obj == nil || obj.Size != int64(size) {
+		stored, name := int64(-1), ""
+		if obj != nil {
+			stored, name = obj.Size, obj.Name
+		}
+		logrus.WithField("object", name).Warnf("gcs short write: stored %d of %d bytes, retrying", stored, size)
+		return &googleapi.Error{Code: http.StatusServiceUnavailable,
+			Message: fmt.Sprintf("gcs short write: stored %d of %d bytes", stored, size)}
+	}
+	return nil
 }
 
 // Commit flushes all content written to this FileWriter and makes it
