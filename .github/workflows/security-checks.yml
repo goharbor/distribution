@@ -34,10 +34,16 @@ jobs:
           bash script/security-checks/install-tools.sh "$RUNNER_TEMP/security-bin"
           echo "$RUNNER_TEMP/security-bin" >> "$GITHUB_PATH"
 
-      - name: Test scanning rules and commit handling
+      - name: Verify scanner installation and rules
         run: |
-          python -m unittest discover -s script/security-checks/tests -v
+          python -m pip check
+          semgrep --version
+          gitleaks version
+          codespell --version
           semgrep --test --config .github/security-checks/rules script/security-checks/tests/fixtures
+
+      - name: Test commit and report handling
+        run: python -m unittest discover -s script/security-checks/tests -v
 
       - name: Scan every introduced commit and the complete resulting tree
         if: ${{ !cancelled() }}

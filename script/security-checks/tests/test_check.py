@@ -113,10 +113,10 @@ func same(hostname, other string) bool { return strings.EqualFold(hostname, othe
              contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(check.main(), 1)
         scans = json.loads(report.read_text())["scans"]
+        self.assertFalse(any(scan.get("error") for scan in scans), scans)
         self.assertEqual([scan["commit"] for scan in scans], [first, head])
         self.assertTrue(scans[0]["findings"])
         self.assertEqual(scans[1]["findings"], [])
-        self.assertFalse(any(scan.get("error") for scan in scans))
 
 
 class PolicyTests(unittest.TestCase):

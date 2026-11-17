@@ -53,6 +53,10 @@ and review rules: changes to CI policy are security-sensitive.
 Code patterns use Semgrep Community Edition and local, versioned rules; no
 registry rules, Semgrep account, model API, repository secret or license is
 needed. Tool versions are pinned in `requirements.txt` and `install-tools.sh`.
+Pydantic is pinned alongside Semgrep because its MCP dependency uses a typing
+helper removed in newer Pydantic releases. CI verifies the installed packages
+and runs the synthetic rule fixtures before commit-handling tests, so tool
+startup failures are visible without publishing source or build logs.
 The installer verifies the upstream Gitleaks archive checksum before executing
 the binary. See [Semgrep rule syntax](https://semgrep.dev/docs/writing-rules/rule-syntax)
 and [Gitleaks configuration](https://github.com/gitleaks/gitleaks#configuration).
@@ -92,6 +96,7 @@ Install Python 3.12+, Git, curl and the pinned scanners in an isolated environme
 python3 -m venv /tmp/security-venv
 . /tmp/security-venv/bin/activate
 python -m pip install -r .github/security-checks/requirements.txt
+python -m pip check
 bash script/security-checks/install-tools.sh /tmp/security-bin
 export PATH="/tmp/security-bin:$PATH"
 
