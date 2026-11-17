@@ -1,0 +1,99 @@
+rules:
+  - id: go-case-sensitive-certificate-alias
+    languages: [go]
+    severity: ERROR
+    message: "Check the certificate-store alias contract; use case-insensitive identity comparison for stores with case-insensitive aliases."
+    patterns:
+      - pattern-either:
+          - pattern: $ALIAS == $OTHER
+          - pattern: $ALIAS != $OTHER
+          - pattern: $OTHER == $ALIAS
+          - pattern: $OTHER != $ALIAS
+      - metavariable-regex:
+          metavariable: $ALIAS
+          regex: '(?i)^(?:[\w.]+\.)?\w*(?:certalias|certificatealias)$'
+      - pattern-not: $ALIAS == ""
+      - pattern-not: $ALIAS != ""
+      - pattern-not: '"" == $ALIAS'
+      - pattern-not: '"" != $ALIAS'
+
+  - id: go-case-sensitive-network-name
+    languages: [go]
+    severity: ERROR
+    message: "Compare DNS/FQDN/host names without case sensitivity while preserving their original spelling for storage and output."
+    patterns:
+      - pattern-either:
+          - pattern: $NAME == $OTHER
+          - pattern: $NAME != $OTHER
+          - pattern: $OTHER == $NAME
+          - pattern: $OTHER != $NAME
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: '(?i)^(?:[\w.]+\.)?(?:\w*(?:fqdn|dnsname|hostname))$'
+      # Empty checks do not compare identifier identity.
+      - pattern-not: $NAME == ""
+      - pattern-not: $NAME != ""
+      - pattern-not: '"" == $NAME'
+      - pattern-not: '"" != $NAME'
+
+  - id: go-case-sensitive-uuid-string
+    languages: [go]
+    severity: ERROR
+    message: "Compare UUID strings using case-insensitive comparison or parse both into UUID values. Typed UUID byte-array comparisons are valid."
+    patterns:
+      - pattern-either:
+          - pattern: $UUID.String() == $OTHER
+          - pattern: $UUID.String() != $OTHER
+          - pattern: $OTHER == $UUID.String()
+          - pattern: $OTHER != $UUID.String()
+      - metavariable-regex:
+          metavariable: $UUID
+          regex: '(?i)^(?:[\w.]+\.)?\w*uuid$'
+
+  - id: go-case-sensitive-uuid-text
+    languages: [go]
+    severity: ERROR
+    message: "UUID text accepts mixed case. Use EqualFold or parse both strings into UUID values before comparing."
+    patterns:
+      - pattern-either:
+          - pattern: $UUID == $OTHER
+          - pattern: $UUID != $OTHER
+          - pattern: $OTHER == $UUID
+          - pattern: $OTHER != $UUID
+      - metavariable-regex:
+          metavariable: $UUID
+          regex: '(?i)^(?:[\w.]+\.)?\w*uuid(?:str|string|text)$'
+      - pattern-not: $UUID == ""
+      - pattern-not: $UUID != ""
+      - pattern-not: '"" == $UUID'
+      - pattern-not: '"" != $UUID'
+
+  - id: go-cluster-name-case-fold
+    languages: [go]
+    severity: ERROR
+    message: "Cluster names are case sensitive. Preserve their case and compare them exactly."
+    patterns:
+      - pattern-either:
+          - pattern: strings.ToLower($NAME)
+          - pattern: strings.ToUpper($NAME)
+          - pattern: strings.EqualFold($NAME, ...)
+          - pattern: strings.EqualFold(..., $NAME)
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: '(?i)^(?:[\w.]+\.)?\w*clustername$'
+
+  - id: go-network-name-case-discard
+    languages: [go]
+    severity: ERROR
+    message: "Preserve DNS input spelling in stored/output identifiers. Use a separate normalized comparison key."
+    patterns:
+      - pattern-either:
+          - pattern: $NAME = strings.ToLower(...)
+          - pattern: $NAME = strings.ToUpper(...)
+          - pattern: $NAME := strings.ToLower(...)
+          - pattern: $NAME := strings.ToUpper(...)
+          - pattern: '$NAME: strings.ToLower(...)'
+          - pattern: '$NAME: strings.ToUpper(...)'
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: '(?i)^(?:[\w.]+\.)?\w*(?:fqdn|dnsname|hostname)$'
