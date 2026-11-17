@@ -1,96 +1,145 @@
-# Security checks
+# Product binary security checks
 
-These checks reduce credential exposure in source code and build logs, improve
-failure handling, and catch identifier comparisons that can weaken validation
-or conflate distinct resources.
+These checks audit repository-owned content used to build the released product
+binary. They detect potential credentials, unsafe error handling and identifier
+comparison defects without reporting unrelated tests, examples or build tools.
 
-## When checks run
+## Product scope
 
-The `Security checks` job runs on every PR update, every branch
-push, merge-queue event and manual dispatch. There are no branch or path
-filters that skip source changes, and newer runs do not cancel older runs.
+`.github/security-checks/targets.json` defines the product entrypoint, build tags
+and release platforms. Its defaults follow the registry image and release
+artifacts: `./cmd/registry`, tags `include_oss,include_gcs`, CGO disabled, and Linux
+amd64, arm/v6, arm/v7, arm64, ppc64le and s390x.
 
-For PRs, Git history enumerates **every commit in `base..head`**, including
-intermediate commits that introduce a defect later removed from the PR head.
-Each commit's complete tracked tree is scanned. The synthetic merge result is
-also scanned to catch integration defects. A push scans every commit in
-`before..after` and the complete final tree, covering merge, squash, rebase and
-direct pushes. A new feature branch with an all-zero `before` scans every
-commit unique to that branch relative to the default branch, plus its full
-head. An initial default-branch push scans all reachable history. Merge queues
-and manual dispatch scan the complete resulting tree.
-Missing Git history fails the job rather than silently narrowing the range.
+For each revision and release platform, `go list -deps -json` resolves the
+non-test package graph using read-only module resolution or the project's
+default vendor mode. The union of repository-local compiler
+inputs is scanned, including Go sources, selected generated code, applicable
+native/assembly inputs, blank-imported packages, and resources included through
+`go:embed`. Build tags, OS and architecture constraints determine membership.
+The JSON report records the selected files and build profiles for each scan.
 
-Checks are strict: existing findings also fail. There is no generated baseline,
-automatic allowlist, or initial report-only period. Remediate existing findings
-and verify the first full scan before requiring the check for all PRs. Large
-historical ranges can require a larger job timeout; a timeout never counts as
-success.
+This excludes test files and test-only dependencies, fixtures that are not
+embedded, unreferenced packages, helper commands, build scripts, CI workflows,
+documentation and configuration files not embedded in the product. Even a
+fixture-named resource is included if the product explicitly embeds it. The
+standalone digest and API-descriptor helper commands are outside the default
+released-product target. Add entrypoints or profiles when the shipped product
+changes. External modules outside the repository are not scanned by this
+repository-source check; tracked vendored inputs are included when selected.
 
-The existing `CI / build` job scans the combined output of its setup, builds,
-validation, tests and coverage commands. The build's original exit status is
-preserved, and detected log credentials or scanner errors also fail the job.
-Raw build output is captured privately in an ephemeral runner directory and
-deleted after scanning; it is never printed or uploaded. To diagnose a build
-failure, reproduce the build locally. Only redacted scanner reports are retained
-as Actions artifacts for 14 days.
+File selection follows compiler inputs, not linker symbol liveness. A selected
+Go file may contain functions later discarded by the linker. Scope discovery
+never runs tests, generators, package initialization or the product binary.
+Unresolved imports, missing modules, invalid entrypoints and incomplete package
+graphs fail the check rather than silently reducing coverage.
 
-Repository administrators must configure branch protection/rulesets to require
-both `Security checks` and `build`, including the merge queue if
-used. A failing workflow alone does not prevent a merge without required status
-checks. Protect review of `.github/security-checks/`, this workflow,
-`ci.yml`, and `script/security-checks/` using the repository's code owners
-and review rules: changes to CI policy are security-sensitive.
+## Before and after merge
 
-## Coverage
+- PR updates scan each introduced commit against its first parent. Only
+  added/modified lines in product inputs are reported. The synthetic PR merge
+  result is checked against the target base with the same change-only policy.
+- A feature-branch push scans each introduced commit's product changes. A new
+  branch excludes history already shared with the default branch.
+- A merged PR triggers a full-product scan of its merge result, including when
+  the destination is a non-default branch. Closing without merging is skipped.
+- Pushes to the default branch and `release/*` scan introduced commits and then
+  the complete product inputs at the resulting head. This also covers direct,
+  squash and rebase pushes. Merge queues scan the queued changes.
+- Manual workflow dispatch and local `full` mode scan the complete product
+  compilation inputs.
 
-| Area | Automated checks |
-| --- | --- |
-| Credential security | Pinned Gitleaks credential/private-key detectors; low-entropy labelled secret assignments in configuration/logs; Go literal production credentials; intraprocedural Go credential-to-log/console taint flow (including debug and structured log fields); shell credential-variable echo/printf and shell tracing. |
-| Safe failure handling | Go error constructors, HTTP error text, error `Message` fields and `WithMessage` literals; codespell dictionary checks and repeated words; support-only escalation, empty/generic messages and missing remediation; simple swallowed error branches, raw HTTP downstream errors and raw stack output. Findings block the check. |
-| Identifier handling | Case-sensitive comparison of recognizable DNS/FQDN/hostname and certificate-alias identifiers; discarding DNS spelling in storage assignments; case-folding recognizable cluster names; case-sensitive comparisons of recognizable UUID string names or UUID `.String()` values. Byte-array UUID equality remains valid. |
+A change-only scan uses full changed files for syntax/data-flow context, then
+filters findings to changed line ranges. Findings elsewhere in a changed file
+are compared with the parent version's matches; a newly introduced data flow
+can therefore flag an unchanged logging sink. Existing matches are compared
+using their matching code rather than line numbers, so inserting unrelated
+lines does not re-report old findings.
+When an import or build constraint adds a file to the product dependency graph,
+that newly compiled content is scanned in full even if its Git contents did not
+change. Removing a file does not produce a finding for the removed content.
 
-Code patterns use Semgrep Community Edition and local, versioned rules; no
-registry rules, Semgrep account, model API, repository secret or license is
-needed. Tool versions are pinned in `requirements.txt` and `install-tools.sh`.
-Pydantic is pinned alongside Semgrep because its MCP dependency uses a typing
-helper removed in newer Pydantic releases. CI verifies the installed packages
-and runs the synthetic rule fixtures before commit-handling tests, so tool
-startup failures are visible without publishing source or build logs.
-The installer verifies the upstream Gitleaks archive checksum before executing
-the binary. See [Semgrep rule syntax](https://semgrep.dev/docs/writing-rules/rule-syntax)
-and [Gitleaks configuration](https://github.com/gitleaks/gitleaks#configuration).
+An unchanged historical finding does not block an unrelated PR edit. A new
+finding in an earlier PR commit remains blocking when a later commit fixes it;
+amend/rebase the affected PR commits when appropriate. Full-product scans after
+merge still report all existing product findings. No baseline is generated.
 
-Static analysis does not prove the security or correctness of every runtime
-path. These checks cannot establish all grammar, a message's factual root
-cause, correct cross-component translation, arbitrary alias names/types,
-transitive credential-bearing DTOs or interprocedural sanitization. Certificate
-aliases must follow their backing store's published contract. OS/non-OS user
-names require the specific OS or identity-provider contract; they are not
-globally case-folded. Protocol-defined error strings must be reviewed against
-their specification before changing their text. Extend rules and add regression
-fixtures for confirmed gaps and contract-specific exceptions; do not apply
-blanket case normalization or guess that a helper named `mask` is safe.
+The ordinary build/test workflow runs independently with normal build output.
+Build logs and test/build artifacts are not scanned or included in security
+reports. Ordinary build or test failures retain their normal workflow status.
 
-Production Semgrep scans exclude Go test files, generated protobuf/files,
-third-party/build directories, `go.sum` and scanner regression fixtures.
-Gitleaks scans all regular tracked files, including ignored-by-Git and
-export-ignored files. Only the low-entropy default-secret detector exempts
-`*_test.go`; built-in real-key/token detectors still
-scan Go tests. Synthetic scanner fixtures are exempt from secret detection.
-Symlinks are not followed. Submodules fail closed until explicitly integrated.
-Target `.semgrepignore`, `.gitleaksignore`, `.gitleaks.toml`, `nosemgrep` and
-`gitleaks:allow` comments cannot suppress a source finding.
+## Coverage and limitations
 
-The log check covers output from the existing CI build/test process. It does
-not exercise deployed services or scan Docker image build logs and diagnostic
-archives. Supplement these checks with runtime tests of authentication, input
-validation and public error responses. Do not expose service credentials to
-fork PR jobs.
+Gitleaks checks the selected compilation inputs for provider credentials,
+private keys and labelled plaintext defaults in embedded resources. Semgrep
+checks Go credential literals and possible credential-to-log flows, swallowed
+errors, raw public error responses, error-message quality and recognizable
+identifier comparisons. Codespell checks extracted error strings only.
+Dictionary findings and missing-remediation patterns require review at the
+API/CLI boundary: preserve low-level sentinel and protocol-defined text when
+callers already add context. Follow the certificate store's alias contract,
+compare UUID text without case sensitivity, preserve DNS input spelling, and
+retain case-sensitive resource naming contracts.
+
+Static rules do not prove security across every runtime path. Review actual
+secret flows and user-visible failure handling and add targeted regression tests
+for confirmed defects. Review false positives individually rather than
+excluding whole directories or automatically allowing findings. Test code can
+be ignored because it is absent from the product graph, not because a filename
+is globally exempt when its content actually enters the binary.
+
+Pinned tools and local rules require no hosted scanner account, model API,
+repository secret or license. Pydantic is pinned because Semgrep's MCP dependency
+uses a typing helper removed in newer versions. Tool self-tests run before scan
+execution. Gitleaks downloads are checked against the upstream archive checksum.
+Target ignore files and inline suppression comments cannot bypass the scanners.
+
+## Reports and required checks
+
+The workflow run Summary contains scope and file counts, deduplicated findings,
+source links, rule explanations and suggested corrections. Links point to the
+scanned commit containing the finding. Counts describe candidates requiring
+review, not confirmed vulnerabilities or a guaranteed number of code edits.
+Change-only counts are limited to those changes; full-product counts cover all
+selected repository inputs. Identical tool/rule/file/line entries are grouped
+across scans, and matches still reported by the latest scan are identified.
+
+Download `code.md` and `code.json` from the security-checks artifact for the full
+report. JSON includes `summary`, deduplicated `findings`, and individual `scans`
+with product scope metadata. Large job summaries show the first 100 locations;
+downloadable reports retain every finding. Reports omit source snippets, matched
+credentials and raw taint traces. Scanner/discovery errors always fail the check.
+
+PR conversations also receive one automatically updated bot comment. Its
+summary is collapsed by default and shows the result and finding count in the
+heading. Expand it for deduplicated counts, findings by rule, file/line links
+and suggested corrections. Location details are bounded to keep comments
+readable; the linked run contains the complete reports. Clean runs update the
+same comment, and missing or invalid reports are marked incomplete. Results
+for an outdated PR head cannot replace the current summary.
+
+The separate `Security PR summary` workflow publishes this comment after
+`Security checks` completes. It has permission to read scan artifacts and write
+PR comments, while the scanning workflow remains read-only for fork PRs. The
+publisher checks out only the target repository's default branch, validates
+report metadata, and never executes code or extracts files from the downloaded
+report archive. Artifact-provided messages and Markdown are not published.
+
+**Initial setup:** merge `security-pr-summary.yml`, `pr_comment.py` and its
+`security_report.py` dependency into the target repository's default branch
+first. GitHub only triggers `workflow_run` listeners that exist on the default
+branch. Then complete or rerun `Security checks` on the PR. Adding the publisher
+only to a PR branch does not activate PR comments. Repository Actions policies
+must permit the publisher's `pull-requests: write` permission.
+
+Configure branch protection/rulesets to require `Security checks` and the normal
+`build` check. Review changes to target manifests, rules and workflow scripts
+through code-owner/review rules, since they control security coverage. Reports
+are retained as Actions artifacts for 14 days.
 
 ## Run locally
 
-Install Python 3.12+, Git, curl and the pinned scanners in an isolated environment:
+Install Go matching `go.mod`, Python 3.12+, Git, curl and the pinned scanners:
 
 ```sh
 python3 -m venv /tmp/security-venv
@@ -103,50 +152,11 @@ export PATH="/tmp/security-bin:$PATH"
 python -m unittest discover -s script/security-checks/tests -v
 semgrep --test --config .github/security-checks/rules script/security-checks/tests/fixtures
 python script/security-checks/check.py full --report /tmp/security.json
-python script/security-checks/check.py logs --report /tmp/log-security.json -- go test ./...
 ```
 
-`full` scans committed `HEAD` by default. Use `--sha` with a full commit SHA
-to select another revision; uncommitted work is not included. `event` reads
-`GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH` and `GITHUB_SHA` from the Actions runner
-and follows the event's complete Git range, not the truncated webhook commit
-list. All selected snapshots are processed even after earlier findings.
-
-## Read a failed check
-
-Open the workflow job summary for counts by rule and a table of every affected
-file/line with a suggested review or correction. Source links use the scanned
-commit containing the finding, including findings that occur only in earlier
-PR commits. The summary distinguishes scanner errors, failed build/test
-commands and candidate findings.
-
-Counts distinguish total occurrences across snapshots, unique findings,
-file/line locations, affected files and matches still present in the latest
-snapshot. Identical tool/rule/file/line entries are grouped across commits.
-Several rules can flag one location, and a line moving between commits can
-produce separate entries. Counts describe candidates requiring review, not a
-confirmed vulnerability count or a guaranteed count of code edits.
-
-Download `code.md` and `code.json` from the security-checks artifact for the full
-report. The JSON includes `summary` counts and a deduplicated `findings` list
-with descriptions, remediation guidance and snapshot references; `scans`
-retains each snapshot's results. The build-log artifact similarly includes
-`report.md` and `report.json`. A very large job summary shows only the first
-100 locations; the downloadable reports always retain every finding.
-
-Review credential exposures first, then error propagation and identifier
-handling. For missing error guidance, trace the message to the API/CLI boundary
-before editing: a low-level sentinel or a protocol-defined string may be
-correct when callers add context. Confirm test-only keys and tokens cannot be
-used against a deployed service. Review false positives individually and add
-targeted regression fixtures when changing a detector; do not automatically
-baseline findings or exclude an entire directory.
-
-An earlier PR commit remains blocking even if a later commit removes its
-finding. Amend/rebase the affected PR commits when appropriate; do not rewrite
-shared branch history merely to clear a check.
-
-Reports omit source snippets, matched secrets, taint traces and message
-metavariables. A scanner failure is reported separately and always blocks the
-check. Never upload a raw scanner report or unreviewed build log: either can
-contain secrets.
+`full` scans committed `HEAD`; use `--sha` with a full commit SHA to select
+another revision. Uncommitted changes are not included. `event` reads the GitHub
+event payload and traverses complete Git history rather than the webhook's
+bounded commit list. All selected revisions are processed after earlier
+findings. Resolving the product graph may download modules into Go's cache;
+module files are read-only and no package code is executed by discovery.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Strict commit-snapshot checks and private build-log scanning.
+"""Scan changed or complete product-binary compilation inputs.
 
 Only trusted policy and tool binaries are executed. Source snapshots are data;
 their scripts, Git hooks, .gitleaksignore and Semgrep configuration are not used.
@@ -7,22 +7,23 @@ Reports intentionally omit source, matches, metavariables and credential values.
 """
 
 import argparse
+from collections import Counter
+import hashlib
 import io
 import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 
 from security_report import group_findings, render_markdown
+from binary_scope import ScopeError, discover_files, load_targets
 
 
 POLICY = Path(__file__).resolve().parents[2] / ".github/security-checks"
-EXCLUDES = ["vendor", "node_modules", ".git", "bin", "dist", "build",
-            "*_test.go", "*.pb.go", "*.generated.*", "go.sum",
-            "script/security-checks/tests"]
 ACTION = re.compile(
     r"\b(?:check|verify|retry|restart|configure|set|provide|specify|remove|"
     r"replace|install|enable|disable|ensure|use|inspect|review|run|update|"
@@ -34,7 +35,7 @@ VAGUE = re.compile(r"^(?:an? )?(?:unknown|unexpected|server|generic) "
                    r"(?:error|failure)(?: occurred)?[.!\s]*$", re.I)
 
 
-class ScanError(Exception):
+class ScanError(ScopeError):
     """A scanner/configuration error must fail closed, never count as clean."""
 
 
@@ -47,7 +48,7 @@ def run(command, *, cwd=None, accepted=(0,), input=None, env=None):
 
 
 def git(repo, *args):
-    return run(["git", "-C", str(repo), *args]).stdout
+    return run(["git", "--literal-pathspecs", "-C", str(repo), *args]).stdout
 
 
 def commit(repo, value):
@@ -88,6 +89,67 @@ def select_commits(repo, event):
     return list(dict.fromkeys([*revisions.decode().splitlines(), head, resulting]))
 
 
+def first_parent(repo, sha):
+    parents = git(repo, "rev-list", "--parents", "-n", "1", sha).decode().split()
+    return parents[1] if len(parents) > 1 else None
+
+
+def select_scans(repo, event):
+    kind = os.environ["GITHUB_EVENT_NAME"]
+    if kind == "pull_request" and event.get("action") == "closed":
+        if not event["pull_request"].get("merged"):
+            return []
+        return [(commit(repo, event["pull_request"]["merge_commit_sha"]), None, "full")]
+    revisions = select_commits(repo, event)
+    if kind not in {"pull_request", "push", "merge_group"}:
+        return [(revisions[-1], None, "full")]
+    plan = []
+    for sha in revisions:
+        base = first_parent(repo, sha)
+        if kind == "pull_request" and sha != event["pull_request"]["head"]["sha"] and sha == os.environ["GITHUB_SHA"]:
+            base = commit(repo, event["pull_request"]["base"]["sha"])
+        elif kind == "merge_group" and event.get("merge_group", {}).get("base_sha"):
+            base = commit(repo, event["merge_group"]["base_sha"])
+        plan.append((sha, base, "changes"))
+    if kind == "push":
+        reference = event.get("ref", "")
+        default = event.get("repository", {}).get("default_branch", "main")
+        if reference == "refs/heads/" + default or reference.startswith("refs/heads/release/"):
+            plan.append((commit(repo, event["after"]), None, "full"))
+    return plan
+
+
+def changed_ranges(repo, sha, base, paths):
+    ranges = {}
+    if base:
+        names = git(repo, "diff", "--no-ext-diff", "--no-renames", "--name-only", "-z", base, sha)
+    else:
+        names = git(repo, "diff-tree", "--root", "--no-commit-id", "--no-renames", "--name-only", "-r", "-z", sha)
+    changed = set(filter(None, names.decode().split("\0")))
+    for path in sorted(set(paths) & changed):
+        if base:
+            command = ("diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--unified=0", base, sha, "--", path)
+        else:
+            command = ("show", "--format=", "--root", "--no-ext-diff", "--no-textconv", "--unified=0", sha, "--", path)
+        hunks = []
+        for line in git(repo, *command).decode(errors="replace").splitlines():
+            match = re.match(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", line)
+            if match:
+                start, count = int(match[1]), int(match[2] or 1)
+                if count:
+                    hunks.append((start, start + count - 1))
+        if hunks:
+            ranges[path] = hunks
+    return ranges
+
+
+def touches_change(item, changes):
+    spans = [(item["line"], item.get("end_line", item["line"]))]
+    spans.extend(tuple(span) for span in item.get("related_ranges", []))
+    return any(start <= changed_end and changed_start <= end
+               for start, end in spans for changed_start, changed_end in changes.get(item["path"], []))
+
+
 def export_snapshot(repo, sha, destination):
     # git archive respects export-ignore attributes. Explicit ls-tree/cat-file
     # enumeration instead guarantees a PR cannot hide files using attributes.
@@ -100,7 +162,9 @@ def export_snapshot(repo, sha, destination):
         if path.is_absolute() or ".." in path.parts or ".git" in path.parts:
             raise ScanError("Unsafe source path")
         if mode == b"160000":
-            raise ScanError("Submodule source must be scanned explicitly")
+            # Unrelated submodules are outside the selected product. A product
+            # import that needs this unmaterialized source fails Go discovery.
+            continue
         if mode == b"120000":
             # Do not dereference attacker-controlled symlinks outside the tree.
             continue
@@ -124,12 +188,12 @@ def export_snapshot(repo, sha, destination):
         target.write_bytes(data)
 
 
-def finding(tool, rule, path, line, message):
+def finding(tool, rule, path, line, message, end_line=None):
     return {"tool": tool, "rule": rule, "path": str(path),
-            "line": int(line), "message": message}
+            "line": int(line), "end_line": int(end_line or line), "message": message}
 
 
-def scan_secrets(root, *, logs=False):
+def scan_secrets(root):
     with tempfile.TemporaryDirectory(prefix="gitleaks-report-") as temporary:
         report = Path(temporary) / "report.json"
         # Run from a trusted, empty working directory. No target-supplied ignore
@@ -146,8 +210,8 @@ def scan_secrets(root, *, logs=False):
         if bool(raw) != (result.returncode == 10):
             raise ScanError("Gitleaks exit code/report mismatch")
         return [finding("gitleaks", item["RuleID"],
-                        "build.log" if logs else relative_path(item["File"], root),
-                        item["StartLine"], "Possible plaintext credential; remove or redact it.")
+                        relative_path(item["File"], root), item["StartLine"],
+                        "Possible plaintext credential; remove or redact it.", item.get("EndLine"))
                 for item in raw]
 
 
@@ -198,9 +262,8 @@ def scan_code(root):
         command = ["semgrep", "scan", "--config", str(POLICY / "rules"),
                    "--json-output", str(report), "--quiet", "--strict", "--metrics=off",
                    "--disable-version-check", "--disable-nosem", "--no-git-ignore",
-                   "--max-target-bytes", "0", "--timeout", "0"]
-        for exclusion in [*EXCLUDES, ".semgrepignore"]:
-            command.extend(["--exclude", exclusion])
+                   "--max-target-bytes", "0", "--timeout", "0",
+                   "--exclude", ".semgrepignore"]
         # Semgrep also honors .semgrepignore outside Git ignore handling.
         # Source is already a disposable data-only snapshot; remove this input.
         for ignore in root.rglob(".semgrepignore"):
@@ -229,11 +292,21 @@ def scan_code(root):
                 text = message[len(prefix):]
                 messages.append((text, path, line))
             else:
-                findings.append(finding("semgrep", rule, path, line, item["extra"]["message"]))
+                entry = finding("semgrep", rule, path, line, item["extra"]["message"], item["end"]["line"])
+                findings.append(entry)
         misspelled = misspelled_messages([text for text, _, _ in messages], temporary)
         for index, (text, path, line) in enumerate(messages):
             findings.extend(message_findings(text, path, line, misspelled=index in misspelled))
         return findings
+
+
+def match_key(item, root):
+    # Compare matching code in changed files, not line numbers, so unrelated
+    # line insertions do not make an old finding look newly introduced. The
+    # digest stays in memory; source text and credential hashes are not reported.
+    lines = (root / item["path"]).read_bytes().splitlines()
+    source = b" ".join(b" ".join(lines[item["line"] - 1:item.get("end_line", item["line"])]).split())
+    return item["tool"], item["rule"], item["path"], hashlib.sha256(source).digest()
 
 
 def write_report(path, scans):
@@ -265,64 +338,102 @@ def write_report(path, scans):
     return 1 if stats["occurrences"] or stats["scanner_errors"] or stats["failed_commands"] else 0
 
 
-def scan_revision(repo, sha):
-    entry = {"commit": sha, "scope": "full-codebase", "findings": []}
+def scan_revision(repo, sha, base=None, mode="full", scope_cache=None):
+    entry = {"commit": sha, "base": base, "scope": "binary-" + mode, "findings": []}
+    scope_cache = scope_cache if scope_cache is not None else {}
     with tempfile.TemporaryDirectory(prefix="security-source-") as temporary:
-        root = Path(temporary)
+        root = Path(temporary) / "source"
+        root.mkdir()
         try:
             export_snapshot(repo, sha, root)
-        except (ScanError, ValueError, OSError):
-            entry["error"] = "The complete source snapshot could not be exported."
+            targets = load_targets(POLICY / "targets.json")
+            if sha not in scope_cache:
+                scope_cache[sha] = discover_files(root, targets)
+            compiled = scope_cache[sha]
+            selected = set(compiled)
+            changes = {}
+            newly_compiled = set()
+            if mode == "changes":
+                changes = changed_ranges(repo, sha, base, compiled)
+                if base and base not in scope_cache:
+                    before = Path(temporary) / "before"
+                    before.mkdir()
+                    export_snapshot(repo, base, before)
+                    scope_cache[base] = discover_files(before, targets, allow_missing=True)
+                newly_compiled = compiled - scope_cache.get(base, set())
+                selected = set(changes) | newly_compiled
+            entry["product"] = {"entrypoints": targets["entrypoints"], "tags": targets["tags"],
+                                "platforms": targets["platforms"], "compiled_files": len(compiled),
+                                "scanned_files": len(selected), "files": sorted(selected)}
+            inputs = Path(temporary) / "inputs"
+            inputs.mkdir()
+            for name in selected:
+                destination = inputs / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(root / name, destination)
+        except (ScopeError, ValueError, KeyError, OSError) as error:
+            entry["error"] = str(error) if isinstance(error, ScopeError) else "Product build-input discovery failed."
+            return entry
+        if not selected:
+            print(f"Scanned {sha} ({mode}): no product compilation inputs changed")
             return entry
         for name, scanner in (("gitleaks", scan_secrets), ("semgrep", scan_code)):
             try:
-                entry["findings"].extend(scanner(root))
-            except (ScanError, ValueError, KeyError, OSError) as error:
+                results = scanner(inputs)
+                if mode == "changes":
+                    direct = [item for item in results if item["path"] in newly_compiled or touches_change(item, changes)]
+                    indirect = [item for item in results if item not in direct]
+                    if indirect:
+                        before = Path(temporary) / "before"
+                        if not before.exists():
+                            before.mkdir()
+                            export_snapshot(repo, base, before)
+                        prior_inputs = Path(temporary) / (name + "-before")
+                        prior_inputs.mkdir()
+                        for path in selected & scope_cache.get(base, set()):
+                            target = prior_inputs / path
+                            target.parent.mkdir(parents=True, exist_ok=True)
+                            shutil.copyfile(before / path, target)
+                        prior = scanner(prior_inputs)
+                        counts = Counter(match_key(item, prior_inputs) for item in prior)
+                        for item in indirect:
+                            key = match_key(item, inputs)
+                            if counts[key]:
+                                counts[key] -= 1
+                            else:
+                                item["change_reason"] = "New finding in a changed product file"
+                                direct.append(item)
+                    results = direct
+                entry["findings"].extend(results)
+            except (ScopeError, ValueError, KeyError, OSError) as error:
                 entry["error"] = "Scanner failed or analysis was incomplete; rerun locally to diagnose."
                 entry.setdefault("scanner_errors", []).append({
                     "tool": name,
                     "reason": str(error) if isinstance(error, ScanError) else type(error).__name__})
-    print(f"Scanned {sha}: {len(entry['findings'])} finding(s)")
+    print(f"Scanned {sha} ({mode}, {len(selected)} product files): {len(entry['findings'])} finding(s)")
     return entry
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["event", "full", "logs"])
+    parser.add_argument("mode", choices=["event", "full"])
     parser.add_argument("--repo", type=Path, default=Path.cwd())
     parser.add_argument("--sha", default=os.environ.get("GITHUB_SHA"))
     parser.add_argument("--report", type=Path, required=True)
-    args, command = parser.parse_known_args()
-    if command and command[0] == "--":
-        command.pop(0)
+    args = parser.parse_args()
     scans = []
     try:
-        if args.mode == "logs":
-            if not command:
-                raise ScanError("A build/test command is required after --")
-            with tempfile.TemporaryDirectory(prefix="security-logs-") as temporary:
-                log = Path(temporary) / "build.log"
-                with log.open("wb") as stream:
-                    result = subprocess.run(command, cwd=args.repo, stdout=stream, stderr=subprocess.STDOUT)
-                scan = {"scope": "build-logs", "command_exit": result.returncode,
-                        "findings": scan_secrets(Path(temporary), logs=True)}
-                scans.append(scan)
-                print(f"Build/test command exited {result.returncode}; raw logs are not published.")
+        repo = args.repo.resolve()
+        if args.mode == "event":
+            event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+            plan = select_scans(repo, event)
         else:
-            if command:
-                raise ScanError("Unexpected command arguments")
-            repo = args.repo.resolve()
-            if args.mode == "event":
-                event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
-                revisions = select_commits(repo, event)
-            else:
-                sha = args.sha or git(repo, "rev-parse", "HEAD").decode().strip()
-                revisions = [commit(repo, sha)]
-            # Do not short-circuit: a failing early commit must not prevent
-            # later commits/full head from being scanned and reported.
-            for sha in revisions:
-                scans.append(scan_revision(repo, sha))
-    except (ScanError, ValueError, KeyError, OSError):
+            sha = args.sha or git(repo, "rev-parse", "HEAD").decode().strip()
+            plan = [(commit(repo, sha), None, "full")]
+        scope_cache = {}
+        for sha, base, mode in plan:
+            scans.append(scan_revision(repo, sha, base, mode, scope_cache))
+    except (ScopeError, ValueError, KeyError, OSError):
         scans.append({"scope": args.mode, "error": "Scan could not complete; missing history, tools or invalid input.", "findings": []})
     return write_report(args.report, scans)
 

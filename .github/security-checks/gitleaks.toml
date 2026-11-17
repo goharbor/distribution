@@ -3,18 +3,13 @@ title = "Credential security checks"
 [extend]
 useDefault = true
 
-[allowlist]
-description = "Synthetic scanner regression fixtures (never application code)"
-paths = ['''(^|/)script/security-checks/tests/fixtures/''']
-
 # Default detectors deliberately use entropy thresholds. Also reject weak
-# hardcoded defaults and labelled credentials in application/build logs.
+# hardcoded defaults in resources embedded in the product binary.
 [[rules]]
 id = "labelled-plaintext-secret"
 description = "Plaintext credential assignment (including low-entropy defaults)"
 # Go assignments are covered by syntax-aware Semgrep rules; applying this
 # textual rule to Go would mistake `secretKey = params.SecretKey` for a literal.
-path = '''(?i)(?:\.(?:log|json|ya?ml|toml|ini|env|conf|properties)$|(?:^|/)\.env(?:\..*)?$)'''
 regex = '''(?i)(?:password|passwd|client[_-]?secret|api[_-]?key|access[_-]?token|refresh[_-]?token|secret[_-]?key)[\s"']{0,3}[:=][\s"']{0,3}([a-z0-9][a-z0-9_./+@!#$%^&*=-]{3,})'''
 secretGroup = 1
 keywords = ["password", "passwd", "secret", "token", "key"]
@@ -25,7 +20,7 @@ regexes = [
   '''(?i)^(?:true|false|null|nil|redacted|masked)$''',
 ]
 
-# Only the low-entropy default-password rule exempts Go test source. Provider
-# tokens/private keys are still checked in tests by the built-in rules.
+# Go literals are checked by the syntax-aware rule. All non-Go compiled or
+# embedded inputs are checked here, including resources without extensions.
 [[rules.allowlists]]
-paths = ['''(^|/)[^/]+_test\.go$''']
+paths = ['''\.go$''']

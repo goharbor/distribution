@@ -18,6 +18,17 @@ check = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(check)
 
 
+def setUpModule():
+    # Self-tests must not publish synthetic findings into the workflow summary.
+    global report_environment
+    report_environment = patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": ""})
+    report_environment.start()
+
+
+def tearDownModule():
+    report_environment.stop()
+
+
 class CommitTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -26,12 +37,14 @@ class CommitTests(unittest.TestCase):
         self.git("init", "-b", "main")
         self.git("config", "user.email", "scanner-test@example.invalid")
         self.git("config", "user.name", "Scanner Test")
-        self.base = self.commit("base.txt", "base")
+        self.initial = self.commit("go.mod", "module example.test/product\n\ngo 1.20\n")
+        self.base = self.commit("cmd/registry/main.go", "package main\nfunc main() {}\n")
 
     def git(self, *args):
         return subprocess.check_output(["git", "-C", str(self.repo), *args], stderr=subprocess.DEVNULL).decode().strip()
 
     def commit(self, name, content):
+        (self.repo / name).parent.mkdir(parents=True, exist_ok=True)
         (self.repo / name).write_text(content)
         self.git("add", name)
         self.git("commit", "-s", "-qm", "scanner fixture")
@@ -62,7 +75,7 @@ class CommitTests(unittest.TestCase):
     def test_new_branch_does_not_skip_commits(self):
         head = self.commit("new.txt", "new")
         event = {"before": "0" * 40, "after": head}
-        self.assertEqual(self.select("push", event, head), [self.base, head])
+        self.assertEqual(self.select("push", event, head), [self.initial, self.base, head])
 
     def test_new_feature_branch_only_excludes_shared_default_history(self):
         self.git("update-ref", "refs/remotes/origin/main", self.base)
@@ -76,11 +89,83 @@ class CommitTests(unittest.TestCase):
         for kind in ("workflow_dispatch", "merge_group"):
             self.assertEqual(self.select(kind, {}, self.base), [self.base])
 
+    def test_event_policy_uses_changes_before_merge_and_full_product_after_merge(self):
+        head = self.commit("docs.txt", "documentation")
+        push = {"before": self.base, "after": head, "ref": "refs/heads/feature", "repository": {"default_branch": "main"}}
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "push", "GITHUB_SHA": head}):
+            self.assertEqual([item[2] for item in check.select_scans(self.repo, push)], ["changes"])
+            push["ref"] = "refs/heads/main"
+            self.assertEqual([item[2] for item in check.select_scans(self.repo, push)], ["changes", "full"])
+        merged = {"action": "closed", "pull_request": {"merged": True, "merge_commit_sha": head}}
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "pull_request", "GITHUB_SHA": head}):
+            self.assertEqual(check.select_scans(self.repo, merged), [(head, None, "full")])
+            merged["pull_request"]["merged"] = False
+            self.assertEqual(check.select_scans(self.repo, merged), [])
+
+    @unittest.skipUnless(shutil.which("go"), "requires Go")
+    def test_test_and_build_changes_never_reach_the_scanners(self):
+        self.commit("cmd/registry/main_test.go", 'package main\nconst password = "synthetic-test-default"\n')
+        self.commit("build.sh", '#!/bin/sh\necho "$PASSWORD"\n')
+        head = self.commit("cmd/registry/config-dev.yml", "password: synthetic-example\n")
+        with patch.object(check, "scan_secrets") as secrets, patch.object(check, "scan_code") as code, \
+             contextlib.redirect_stdout(io.StringIO()):
+            entry = check.scan_revision(self.repo, head, self.base, "changes")
+        self.assertNotIn("error", entry, entry)
+        self.assertEqual(entry["product"]["scanned_files"], 0)
+        secrets.assert_not_called()
+        code.assert_not_called()
+
+    @unittest.skipUnless(all(shutil.which(tool) for tool in ("go", "semgrep", "codespell", "gitleaks")), "requires scanners and Go")
+    def test_only_changed_lines_are_reported_but_full_mode_includes_legacy_findings(self):
+        source = 'package main\nimport "errors"\nfunc main() {}\nvar existing = errors.New("connection failed")\n'
+        base = self.commit("cmd/registry/main.go", source)
+        head = self.commit("cmd/registry/main.go", source + "const harmless = true\n")
+        with contextlib.redirect_stdout(io.StringIO()):
+            delta = check.scan_revision(self.repo, head, base, "changes")
+            full = check.scan_revision(self.repo, head)
+        self.assertNotIn("error", delta, delta)
+        self.assertEqual(delta["findings"], [])
+        self.assertNotIn("error", full, full)
+        self.assertIn("error-missing-remediation", {item["rule"] for item in full["findings"]})
+
+    @unittest.skipUnless(all(shutil.which(tool) for tool in ("go", "semgrep", "codespell", "gitleaks")), "requires scanners and Go")
+    def test_new_import_reports_newly_compiled_content_even_without_file_edits(self):
+        base = self.commit("unused/keys.go", 'package unused\nconst apiKey = "synthetic-default"\n')
+        head = self.commit("cmd/registry/main.go", 'package main\nimport _ "example.test/product/unused"\nfunc main() {}\n')
+        with contextlib.redirect_stdout(io.StringIO()):
+            entry = check.scan_revision(self.repo, head, base, "changes")
+        self.assertNotIn("error", entry, entry)
+        self.assertTrue(any(item["path"] == "unused/keys.go" and item["rule"] == "go-hardcoded-secret" for item in entry["findings"]))
+
+    @unittest.skipUnless(all(shutil.which(tool) for tool in ("go", "semgrep", "codespell", "gitleaks")), "requires scanners and Go")
+    def test_changed_secret_source_reports_existing_log_sink(self):
+        source = '''package main
+import ("log"; "net/http")
+func main() {}
+func write(request *http.Request) {
+ value := "safe"
+ log.Print(value)
+}
+'''
+        base = self.commit("cmd/registry/main.go", source)
+        head = self.commit("cmd/registry/main.go", source.replace('value := "safe"', 'value := request.Header.Get("Authorization")'))
+        with contextlib.redirect_stdout(io.StringIO()):
+            entry = check.scan_revision(self.repo, head, base, "changes")
+        self.assertNotIn("error", entry, entry)
+        self.assertIn("go-secret-to-log", {item["rule"] for item in entry["findings"]})
+
     def test_missing_history_and_invalid_sha_fail_closed(self):
         with self.assertRaises(check.ScanError):
             check.commit(self.repo, "--all")
         with self.assertRaises(check.ScanError):
             self.select("push", {"before": "f" * 40, "after": self.base}, self.base)
+
+    def test_changed_ranges_treat_embedded_asset_names_as_literal_paths(self):
+        self.commit("assets/a.conf", "safe\n")
+        base = self.commit("assets/[a].conf", "safe\n")
+        head = self.commit("assets/[a].conf", "changed\n")
+        changes = check.changed_ranges(self.repo, head, base, {"assets/a.conf", "assets/[a].conf"})
+        self.assertEqual(changes, {"assets/[a].conf": [(1, 1)]})
 
     def test_snapshot_ignores_export_ignore_and_never_follows_symlinks(self):
         self.commit(".gitattributes", "hidden.go export-ignore\n")
@@ -94,14 +179,16 @@ class CommitTests(unittest.TestCase):
             self.assertEqual((root / "hidden.go").read_text(), "package hidden")
             self.assertFalse((root / "outside-link").exists())
 
-    @unittest.skipUnless(all(shutil.which(tool) for tool in ("semgrep", "codespell", "gitleaks")),
+    @unittest.skipUnless(all(shutil.which(tool) for tool in ("go", "semgrep", "codespell", "gitleaks")),
                          "requires all pinned scanners")
     def test_real_pr_gate_fails_for_intermediate_defect_after_head_fix(self):
-        first = self.commit("main.go", '''package example
+        first = self.commit("cmd/registry/main.go", '''package main
+func main() {}
 func same(hostname, other string) bool { return hostname == other }
 ''')
-        head = self.commit("main.go", '''package example
+        head = self.commit("cmd/registry/main.go", '''package main
 import "strings"
+func main() {}
 func same(hostname, other string) bool { return strings.EqualFold(hostname, other) }
 ''')
         event = self.repo / "event.json"
@@ -155,7 +242,10 @@ class PolicyTests(unittest.TestCase):
             self.assertEqual(findings[0]["path"], "config.yml")
 
     def test_scanner_errors_do_not_skip_other_scanners(self):
-        with patch.object(check, "export_snapshot"), \
+        def export(repo, sha, root):
+            (root / "main.go").write_text("package main\n")
+        with patch.object(check, "export_snapshot", side_effect=export), \
+             patch.object(check, "discover_files", return_value={"main.go"}), \
              patch.object(check, "scan_secrets", side_effect=check.ScanError("bad")), \
              patch.object(check, "scan_code", return_value=[{"rule": "test"}]) as code, \
              contextlib.redirect_stdout(io.StringIO()):
@@ -182,26 +272,6 @@ class GitleaksIntegrationTests(unittest.TestCase):
             (root / ".gitleaks.toml").write_text('[allowlist]\npaths = [".*"]\n')
             findings = check.scan_secrets(root)
             self.assertTrue(any(item["path"] == "config.yml" for item in findings))
-
-    def test_runtime_credentials_are_blocked_without_exposing_values(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            report = Path(temporary) / "report.json"
-            secret = "synthetic-runtime-credential"
-            result = subprocess.run(
-                [sys.executable, str(Path(check.__file__)), "logs", "--report", str(report),
-                 "--", sys.executable, "-c", f"print('password: {secret}')"], capture_output=True)
-            self.assertEqual(result.returncode, 1)
-            self.assertNotIn(secret.encode(), result.stdout + result.stderr + report.read_bytes())
-            self.assertTrue(json.loads(report.read_text())["scans"][0]["findings"])
-
-    def test_clean_failed_build_keeps_failure(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            report = Path(temporary) / "report.json"
-            result = subprocess.run(
-                [sys.executable, str(Path(check.__file__)), "logs", "--report", str(report),
-                 "--", sys.executable, "-c", "raise SystemExit(7)"], capture_output=True)
-            self.assertEqual(result.returncode, 1)
-            self.assertEqual(json.loads(report.read_text())["scans"][0]["command_exit"], 7)
 
     def test_code_variable_references_are_not_default_credentials(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -247,9 +317,7 @@ func f(hostname, other string) error {
     return nil
 }
 '''
-        self.assertEqual(self.scan(source, {"example_test.go": '''package example
-const password = "synthetic-test-default"
-'''}), [])
+        self.assertEqual(self.scan(source), [])
 
     def test_target_ignore_files_and_inline_suppression_cannot_hide_defect(self):
         findings = self.scan('''package example

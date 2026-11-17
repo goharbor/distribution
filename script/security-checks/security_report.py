@@ -159,19 +159,23 @@ def render_markdown(scans, findings, stats, environment, detail_limit=None):
              f"| Unique candidate findings requiring review | {stats['unique_findings']} |",
              f"| Distinct file/line locations | {stats['locations']} |",
              f"| Files affected | {stats['files']} |",
-             f"| Findings present in latest snapshot | {stats['latest_findings']} |",
+             f"| Findings reported by latest scan | {stats['latest_findings']} |",
              f"| Scanner errors | {stats['scanner_errors']} |",
              f"| Failed build/test commands | {stats['failed_commands']} |", "",
              "Repeated matches across commits are counted once by tool, rule, file and line. These are candidates, not confirmed vulnerabilities; "
              "one correction may resolve several findings, and line movement may create separate entries.", ""]
+    if any(scan.get("product") for scan in scans):
+        lines += ["Only configured product-binary compilation inputs are in scope. Changes-only results cover added/modified lines and newly included compilation inputs; "
+                  "they do not establish that the complete product is clean. Full-product results cover all selected repository compilation inputs.", ""]
     if any(scan.get("error") for scan in scans):
         lines += ["**Analysis is incomplete.** Resolve scanner errors before treating these counts or a missing match as complete coverage.", ""]
-    lines += ["## Scan results", "", "| Snapshot | Scope | Matches | Scanner | Build/test exit |",
-              "| --- | --- | ---: | --- | ---: |"]
+    lines += ["## Scan results", "", "| Snapshot | Scope | Product files scanned | Matches | Scanner | Build/test exit |",
+              "| --- | --- | ---: | ---: | --- | ---: |"]
     for index, scan in enumerate(scans, 1):
         sha = scan.get("commit", "")
         label = sha[:12] if re.fullmatch(r"[0-9a-fA-F]{40,64}", sha) else f"Scan {index}"
-        lines.append(f"| {md_text(label)} | {md_text(scan.get('scope', 'unknown'))} | {len(scan.get('findings', []))} | "
+        files = scan.get("product", {}).get("scanned_files", "-")
+        lines.append(f"| {md_text(label)} | {md_text(scan.get('scope', 'unknown'))} | {files} | {len(scan.get('findings', []))} | "
                      f"{'ERROR: incomplete' if scan.get('error') else 'Complete'} | {int(scan.get('command_exit', 0))} |")
     if stats["scanner_errors"] or stats["failed_commands"]:
         lines += ["", "Resolve failed scanner/tool installation, rule validation or missing-history checks using the preceding self-test output. "
@@ -184,7 +188,7 @@ def render_markdown(scans, findings, stats, environment, detail_limit=None):
         lines.append(f"| {md_text(rule)} | {count} | {md_text(description)} | {md_text(remediation)} |")
     lines += ["", "## Locations and suggested changes", "",
               "Links point to the most recent scanned commit containing each finding. No source snippets or credential values are included.", "",
-              "| ID | File and line | Rule | Present in latest snapshot | Suggested change |",
+              "| ID | File and line | Rule | Reported by latest scan | Suggested change |",
               "| --- | --- | --- | --- | --- |"]
     latest_incomplete = bool(scans and scans[-1].get("error"))
     details = findings if detail_limit is None else findings[:detail_limit]

@@ -2,6 +2,7 @@ name: Security checks
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, closed]
   push:
     branches: ['**']
   merge_group:
@@ -13,6 +14,7 @@ permissions:
 # Do not cancel older pushes: every introduced commit must finish scanning.
 jobs:
   checks:
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'closed' || github.event.pull_request.merged }}
     name: Security checks
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -22,6 +24,12 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merge_commit_sha || github.sha }}
+
+      - name: Set up Go for product build-input discovery
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -45,7 +53,7 @@ jobs:
       - name: Test commit and report handling
         run: python -m unittest discover -s script/security-checks/tests -v
 
-      - name: Scan every introduced commit and the complete resulting tree
+      - name: Scan changed product inputs or the complete merged product
         if: ${{ !cancelled() }}
         run: python script/security-checks/check.py event --report "$RUNNER_TEMP/security-report/code.json"
 

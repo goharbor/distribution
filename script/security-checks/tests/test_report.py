@@ -14,6 +14,16 @@ import check
 from security_report import group_findings, render_markdown
 
 
+def setUpModule():
+    global report_environment
+    report_environment = patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": ""})
+    report_environment.start()
+
+
+def tearDownModule():
+    report_environment.stop()
+
+
 class ReportTests(unittest.TestCase):
     def item(self, rule="go-secret-to-log", path="main.go", line=10):
         return {"tool": "semgrep", "rule": rule, "path": path, "line": line, "message": "redacted finding"}
