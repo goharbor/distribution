@@ -1,0 +1,12 @@
+{
+  "entrypoints": ["./cmd/registry"],
+  "tags": ["include_oss", "include_gcs"],
+  "platforms": [
+    {"GOOS": "linux", "GOARCH": "amd64", "CGO_ENABLED": "0"},
+    {"GOOS": "linux", "GOARCH": "arm", "GOARM": "6", "CGO_ENABLED": "0"},
+    {"GOOS": "linux", "GOARCH": "arm", "GOARM": "7", "CGO_ENABLED": "0"},
+    {"GOOS": "linux", "GOARCH": "arm64", "CGO_ENABLED": "0"},
+    {"GOOS": "linux", "GOARCH": "ppc64le", "CGO_ENABLED": "0"},
+    {"GOOS": "linux", "GOARCH": "s390x", "CGO_ENABLED": "0"}
+  ]
+}

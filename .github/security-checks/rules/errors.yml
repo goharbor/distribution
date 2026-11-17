@@ -1,0 +1,61 @@
+rules:
+  # INFO results are message candidates, not violations. The driver runs the
+  # pinned dictionary and message-policy checks on these string literals only.
+  - id: go-error-message-text
+    languages: [go]
+    severity: INFO
+    message: "Error message candidate: $MESSAGE"
+    patterns:
+      - pattern-either:
+          - pattern: fmt.Errorf("$MESSAGE", ...)
+          - pattern: errors.New("$MESSAGE")
+          - pattern: http.Error($W, "$MESSAGE", ...)
+          - pattern: $CODE.WithMessage("$MESSAGE")
+          - pattern: 'Message: "$MESSAGE"'
+      - focus-metavariable: $MESSAGE
+
+  - id: go-swallowed-error
+    languages: [go]
+    severity: ERROR
+    message: "An error branch silently reports success. Return an error or handle and explain the failure."
+    patterns:
+      - pattern-either:
+          - pattern: |
+              if $ERR != nil {
+                return nil
+              }
+          - pattern: |
+              if $ERR != nil {
+              }
+          - pattern: |
+              if $VALUE, $ERR := $CALL; $ERR != nil {
+                return nil
+              }
+          - pattern: |
+              if $ERR := $CALL; $ERR != nil {
+                return nil
+              }
+      - metavariable-regex:
+          metavariable: $ERR
+          regex: '(?i)^\w*err(?:or)?$'
+
+  - id: go-raw-error-http-response
+    languages: [go]
+    severity: ERROR
+    message: "Translate the downstream error into task context, a cause, remediation and a log reference before returning it to the client."
+    pattern-either:
+      - pattern: http.Error($W, $ERR.Error(), ...)
+      - pattern: http.Error($W, fmt.Sprint($ERR), ...)
+      - pattern: http.Error($W, fmt.Sprintf("%v", $ERR), ...)
+      - pattern: http.Error($W, string(debug.Stack()), ...)
+      - pattern: $CODE.WithMessage($ERR.Error())
+
+  - id: go-raw-stack-output
+    languages: [go]
+    severity: ERROR
+    message: "Raw stack output needs a reviewed diagnostic destination; customer errors must include context and remediation."
+    pattern-either:
+      - pattern: debug.PrintStack()
+      - pattern: fmt.Print(..., debug.Stack(), ...)
+      - pattern: fmt.Printf(..., debug.Stack(), ...)
+      - pattern: fmt.Println(..., debug.Stack(), ...)

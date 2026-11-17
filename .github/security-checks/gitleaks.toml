@@ -1,0 +1,26 @@
+title = "Credential security checks"
+
+[extend]
+useDefault = true
+
+# Default detectors deliberately use entropy thresholds. Also reject weak
+# hardcoded defaults in resources embedded in the product binary.
+[[rules]]
+id = "labelled-plaintext-secret"
+description = "Plaintext credential assignment (including low-entropy defaults)"
+# Go assignments are covered by syntax-aware Semgrep rules; applying this
+# textual rule to Go would mistake `secretKey = params.SecretKey` for a literal.
+regex = '''(?i)(?:password|passwd|client[_-]?secret|api[_-]?key|access[_-]?token|refresh[_-]?token|secret[_-]?key)[\s"']{0,3}[:=][\s"']{0,3}([a-z0-9][a-z0-9_./+@!#$%^&*=-]{3,})'''
+secretGroup = 1
+keywords = ["password", "passwd", "secret", "token", "key"]
+
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = [
+  '''(?i)^(?:true|false|null|nil|redacted|masked)$''',
+]
+
+# Go literals are checked by the syntax-aware rule. All non-Go compiled or
+# embedded inputs are checked here, including resources without extensions.
+[[rules.allowlists]]
+paths = ['''\.go$''']

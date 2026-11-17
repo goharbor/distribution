@@ -27,7 +27,7 @@ if [ "$1" == "-d" ]; then
        until docker version &> /dev/null; do
                (( tries-- ))
                if [ $tries -le 0 ]; then
-                       echo >&2 "error: daemon failed to start"
+                       echo "error: daemon failed to start" >&2
                        exit 1
                fi
                sleep 1
