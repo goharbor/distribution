@@ -16,6 +16,8 @@ import subprocess
 import sys
 import tempfile
 
+from security_report import group_findings, render_markdown
+
 
 POLICY = Path(__file__).resolve().parents[2] / ".github/security-checks"
 EXCLUDES = ["vendor", "node_modules", ".git", "bin", "dist", "build",
@@ -235,18 +237,32 @@ def scan_code(root):
 
 
 def write_report(path, scans):
+    findings, stats = group_findings(scans)
     report = {"schema_version": 1, "checks": ["secrets", "error-messages", "identifier-handling"],
-              "scans": scans}
+              "summary": stats, "findings": findings, "scans": scans}
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(report, indent=2) + "\n")
-    count = sum(len(scan.get("findings", [])) for scan in scans)
-    errors = sum(bool(scan.get("error")) for scan in scans)
-    summary = f"Security checks: {len(scans)} scan(s), {count} finding(s), {errors} scanner error(s)."
+    markdown = render_markdown(scans, findings, stats, os.environ)
+    markdown_path = path.with_suffix(".md")
+    if markdown_path == path:
+        markdown_path = path.with_name(path.stem + ".summary.md")
+    markdown_path.write_text(markdown)
+    summary = (f"Security checks: {stats['snapshots']} snapshot(s), {stats['unique_findings']} unique candidate finding(s) "
+               f"at {stats['locations']} location(s) in {stats['files']} file(s), "
+               f"{stats['occurrences']} total occurrence(s), {stats['scanner_errors']} scanner error(s), "
+               f"{stats['failed_commands']} failed build/test command(s).")
     print(summary)
+    print(f"Locations, reasons and suggested changes: {markdown_path.name} (report artifact / Actions job summary).")
     if os.environ.get("GITHUB_STEP_SUMMARY"):
+        # Keep the job summary below the platform's per-step size limit; the
+        # downloadable artifact always retains the complete location list.
+        job_summary = markdown if len(markdown.encode("utf-8")) < 900_000 else render_markdown(
+            scans, findings, stats, os.environ, detail_limit=100)
+        if len(job_summary.encode("utf-8")) >= 900_000:
+            job_summary = summary + "\nDownload the Markdown/JSON artifact for the complete report.\n"
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as stream:
-            stream.write(summary + " See the redacted report artifact for locations and rules.\n")
-    return 1 if count or errors or any(scan.get("command_exit", 0) for scan in scans) else 0
+            stream.write(job_summary)
+    return 1 if stats["occurrences"] or stats["scanner_errors"] or stats["failed_commands"] else 0
 
 
 def scan_revision(repo, sha):

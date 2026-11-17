@@ -56,7 +56,9 @@ jobs:
       uses: actions/upload-artifact@v4.3.6
       with:
         name: security-checks-build-logs-${{ github.run_id }}-${{ github.run_attempt }}
-        path: ${{ runner.temp }}/security-logs/report.json
+        path: |
+          ${{ runner.temp }}/security-logs/report.json
+          ${{ runner.temp }}/security-logs/report.md
         if-no-files-found: error
         retention-days: 14
 

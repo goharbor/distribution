@@ -112,7 +112,41 @@ to select another revision; uncommitted work is not included. `event` reads
 and follows the event's complete Git range, not the truncated webhook commit
 list. All selected snapshots are processed even after earlier findings.
 
-The JSON reports list each commit, scope, tool, rule, path and line. They omit
-source snippets, matched secrets, taint traces and message metavariables. A
-scanner failure is reported separately and always blocks the check. Never
-upload a raw scanner report or unreviewed build log: either can contain secrets.
+## Read a failed check
+
+Open the workflow job summary for counts by rule and a table of every affected
+file/line with a suggested review or correction. Source links use the scanned
+commit containing the finding, including findings that occur only in earlier
+PR commits. The summary distinguishes scanner errors, failed build/test
+commands and candidate findings.
+
+Counts distinguish total occurrences across snapshots, unique findings,
+file/line locations, affected files and matches still present in the latest
+snapshot. Identical tool/rule/file/line entries are grouped across commits.
+Several rules can flag one location, and a line moving between commits can
+produce separate entries. Counts describe candidates requiring review, not a
+confirmed vulnerability count or a guaranteed count of code edits.
+
+Download `code.md` and `code.json` from the security-checks artifact for the full
+report. The JSON includes `summary` counts and a deduplicated `findings` list
+with descriptions, remediation guidance and snapshot references; `scans`
+retains each snapshot's results. The build-log artifact similarly includes
+`report.md` and `report.json`. A very large job summary shows only the first
+100 locations; the downloadable reports always retain every finding.
+
+Review credential exposures first, then error propagation and identifier
+handling. For missing error guidance, trace the message to the API/CLI boundary
+before editing: a low-level sentinel or a protocol-defined string may be
+correct when callers add context. Confirm test-only keys and tokens cannot be
+used against a deployed service. Review false positives individually and add
+targeted regression fixtures when changing a detector; do not automatically
+baseline findings or exclude an entire directory.
+
+An earlier PR commit remains blocking even if a later commit removes its
+finding. Amend/rebase the affected PR commits when appropriate; do not rewrite
+shared branch history merely to clear a check.
+
+Reports omit source snippets, matched secrets, taint traces and message
+metavariables. A scanner failure is reported separately and always blocks the
+check. Never upload a raw scanner report or unreviewed build log: either can
+contain secrets.

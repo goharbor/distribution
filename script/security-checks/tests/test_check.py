@@ -12,6 +12,7 @@ import unittest
 from unittest.mock import patch
 
 
+sys.path.insert(0, str(Path(__file__).parents[1]))
 SPEC = importlib.util.spec_from_file_location("security", Path(__file__).parents[1] / "check.py")
 check = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(check)
@@ -169,7 +170,7 @@ class PolicyTests(unittest.TestCase):
             for scan in ({"command_exit": 1}, {"error": "failed"}, {"findings": [{}]}):
                 self.assertEqual(check.write_report(report, [scan]), 1)
             self.assertEqual(check.write_report(report, [{"findings": [], "command_exit": 0}]), 0)
-            self.assertEqual(set(json.loads(report.read_text())), {"schema_version", "checks", "scans"})
+            self.assertEqual(set(json.loads(report.read_text())), {"schema_version", "checks", "summary", "findings", "scans"})
 
 
 @unittest.skipUnless(shutil.which("gitleaks"), "requires pinned Gitleaks binary")

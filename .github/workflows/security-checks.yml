@@ -54,6 +54,8 @@ jobs:
         uses: actions/upload-artifact@v4.3.6
         with:
           name: security-checks-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/security-report/*.json
+          path: |
+            ${{ runner.temp }}/security-report/code.json
+            ${{ runner.temp }}/security-report/code.md
           if-no-files-found: error
           retention-days: 14
