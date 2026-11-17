@@ -48,7 +48,7 @@ jobs:
           semgrep --version
           gitleaks version
           codespell --version
-          semgrep --test --config .github/security-checks/rules script/security-checks/tests/fixtures
+          semgrep --test --config .github/security-checks/rules script/security-checks/tests/testdata
 
       - name: Test commit and report handling
         run: python -m unittest discover -s script/security-checks/tests -v

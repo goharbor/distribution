@@ -94,6 +94,11 @@ uses a typing helper removed in newer versions. Tool self-tests run before scan
 execution. Gitleaks downloads are checked against the upstream archive checksum.
 Target ignore files and inline suppression comments cannot bypass the scanners.
 
+Rule samples live in `script/security-checks/tests/testdata`. This directory is
+excluded from Go's recursive package discovery, so deliberately invalid or
+unsafe examples do not enter normal builds, linting or coverage. The rule
+self-tests explicitly scan this directory.
+
 ## Reports and required checks
 
 The workflow run Summary contains scope and file counts, deduplicated findings,
@@ -150,7 +155,7 @@ bash script/security-checks/install-tools.sh /tmp/security-bin
 export PATH="/tmp/security-bin:$PATH"
 
 python -m unittest discover -s script/security-checks/tests -v
-semgrep --test --config .github/security-checks/rules script/security-checks/tests/fixtures
+semgrep --test --config .github/security-checks/rules script/security-checks/tests/testdata
 python script/security-checks/check.py full --report /tmp/security.json
 ```
 
