@@ -17,6 +17,7 @@ import (
 
 var (
 	errResumableDigestNotAvailable = errors.New("resumable digest not available")
+	moveBlobRetryDelays            = []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second}
 )
 
 const (
@@ -344,7 +345,32 @@ func (bw *blobWriter) moveBlob(ctx context.Context, desc distribution.Descriptor
 
 	// TODO(stevvooe): We should also write the mediatype when executing this move.
 
-	return bw.blobStore.driver.Move(ctx, bw.path, blobPath)
+	err = bw.blobStore.driver.Move(ctx, bw.path, blobPath)
+	for _, delay := range moveBlobRetryDelays {
+		if err == nil {
+			return nil
+		}
+		if ctx.Err() != nil {
+			return err
+		}
+		dcontext.GetLoggerWithFields(ctx,
+			map[interface{}]interface{}{
+				"upload.id": bw.ID(),
+				"digest":    desc.Digest,
+			}, "upload.id", "digest").
+			WithError(err).
+			Warnf("moving blob failed, retrying in %s", delay)
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(delay):
+		}
+		if _, statErr := bw.blobStore.driver.Stat(ctx, blobPath); statErr == nil {
+			return nil
+		}
+		err = bw.blobStore.driver.Move(ctx, bw.path, blobPath)
+	}
+	return err
 }
 
 // removeResources should clean up all resources associated with the upload
